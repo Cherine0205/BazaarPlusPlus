@@ -3,6 +3,7 @@
   "model_api": {
     "enabled": false,
     "protocol": "openai",
+    "stream": false,
     "base_url": "",
     "model": "",
     "key_environment": "KARNOK_ADVISOR_API_KEY",

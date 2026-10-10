@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalog import Catalog, atomic_json, read_json
 from engine import Engine, UnknownRule
 from advisor import serve, snapshot_age
-from model_api import decode_gemini_stream, parse_ranking_json, request_ranking, validate_ranking
+from model_api import decode_chat_stream, decode_gemini_stream, parse_ranking_json, request_ranking, validate_ranking
 
 
 @contextmanager
@@ -266,6 +266,52 @@ class ModelTests(unittest.TestCase):
             self.assertIn('保留经济空间', result[0]['reasons'][0])
         finally: server.shutdown(); server.server_close(); thread.join()
 
+    def test_chat_stream_contract_and_verified_facts(self):
+        outer = self
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                outer.assertEqual(self.path, '/v1/chat/completions')
+                outer.assertEqual(self.headers['Accept'], 'text/event-stream')
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                outer.assertEqual(body['model'], 'gemini-3.8-flash:stable')
+                outer.assertIs(body['stream'], True)
+                data = json.loads(body['messages'][1]['content'])
+                outer.assertEqual([c['action_id'] for c in data['candidates']], ['a'])
+                answer = '```json\n'+json.dumps({'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': '保留经济空间'}]}, ensure_ascii=False)+'\n```'
+                chunks = [
+                    {'choices': [{'index': 0, 'delta': {'role': 'assistant'}}]},
+                    {'choices': [{'index': 0, 'delta': {'reasoning_content': 'test-only non-answer'}}]},
+                    {'choices': [{'index': 0, 'delta': {'content': answer[:30]}}]},
+                    {'choices': [{'index': 0, 'delta': {'content': answer[30:]}, 'finish_reason': 'stop'}]},
+                    {'choices': [], 'usage': {'total_tokens': 100}}]
+                frames = [': keepalive\n\n']
+                for chunk in chunks:
+                    frames.append(''.join('data: '+line+'\n' for line in json.dumps(chunk, ensure_ascii=False, indent=2).splitlines())+'\n')
+                raw = (''.join(frames)+'data: [DONE]\n\n').encode('utf-8')
+                self.send_response(200); self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
+            def log_message(self, *_): pass
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            result = request_ranking({'protocol': 'openai', 'stream': True, 'base_url': f'http://127.0.0.1:{server.server_port}/v1',
+                                      'model': 'gemini-3.8-flash:stable'}, {}, self.local, {})
+            self.assertEqual(result[0]['action_id'], 'a')
+            self.assertIn('实际价格2金币', result[0]['reasons'])
+            self.assertIn('保留经济空间', result[0]['reasons'][0])
+        finally: server.shutdown(); server.server_close(); thread.join()
+
+    def test_chat_stream_rejects_incomplete_or_refused_answers(self):
+        answer = json.dumps({'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': 'r'}]})
+        for finish, done, refusal in ((None, True, False), ('length', True, False), ('content_filter', True, False),
+                                      ('stop', False, False), ('stop', True, True)):
+            choice = {'index': 0, 'delta': {'content': answer}}
+            if finish: choice['finish_reason'] = finish
+            if refusal: choice['delta']['refusal'] = 'test-only refusal'
+            raw = ('data: '+json.dumps({'choices': [choice]})+'\n\n'+('data: [DONE]\n\n' if done else '')).encode()
+            with self.subTest(finish=finish, done=done, refusal=refusal), self.assertRaises(ValueError):
+                decode_chat_stream(raw)
+
     def test_gemini_stream_rejects_partial_or_blocked_answers(self):
         answer = json.dumps({'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': 'r'}]})
         for finish in (None, 'MAX_TOKENS', 'SAFETY'):
@@ -285,11 +331,12 @@ class ModelTests(unittest.TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 parse_ranking_json(text)
 
-    def test_gemini_stream_does_not_expose_provider_error_body(self):
+    def test_streams_do_not_expose_provider_error_body(self):
         raw = b'data: {"error":{"message":"test-only-sensitive-provider-text"}}\n\n'
-        with self.assertRaises(RuntimeError) as raised:
-            decode_gemini_stream(raw)
-        self.assertNotIn('test-only-sensitive-provider-text', str(raised.exception))
+        for decoder in (decode_chat_stream, decode_gemini_stream):
+            with self.subTest(decoder=decoder.__name__), self.assertRaises(RuntimeError) as raised:
+                decoder(raw)
+            self.assertNotIn('test-only-sensitive-provider-text', str(raised.exception))
 
     def test_unknown_model_protocol_is_rejected(self):
         with self.assertRaises(ValueError):

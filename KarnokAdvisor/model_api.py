@@ -22,11 +22,40 @@ def parse_ranking_json(text: str) -> dict:
     return json.loads(fenced.group(1) if fenced else text)
 
 
-def decode_gemini_stream(raw: bytes) -> dict:
-    text_parts, finish = [], None
+def sse_data_frames(raw: bytes):
     for frame in raw.decode("utf-8-sig").replace("\r\n", "\n").split("\n\n"):
         data = "\n".join(line[5:].lstrip(" ") for line in frame.splitlines() if line.startswith("data:"))
-        if not data or data.strip() == "[DONE]":
+        if data:
+            yield data
+
+
+def decode_chat_stream(raw: bytes) -> dict:
+    text_parts, finish, done = [], None, False
+    for data in sse_data_frames(raw):
+        if data.strip() == "[DONE]":
+            done = True
+            break
+        chunk = json.loads(data)
+        if "error" in chunk:
+            raise RuntimeError("模型 API 流式响应报告错误")
+        for choice in chunk.get("choices", []):
+            if choice.get("index", 0) != 0:
+                continue
+            delta = choice.get("delta") or {}
+            if delta.get("refusal"):
+                raise ValueError("模型未提供排序")
+            if isinstance(delta.get("content"), str):
+                text_parts.append(delta["content"])
+            finish = choice.get("finish_reason") or finish
+    if not done or finish != "stop" or not text_parts:
+        raise ValueError("模型流式响应未正常完成")
+    return parse_ranking_json("".join(text_parts))
+
+
+def decode_gemini_stream(raw: bytes) -> dict:
+    text_parts, finish = [], None
+    for data in sse_data_frames(raw):
+        if data.strip() == "[DONE]":
             continue
         chunk = json.loads(data)
         if "error" in chunk:
@@ -76,6 +105,7 @@ def request_ranking(settings: dict, snapshot: dict, local: dict, context: dict) 
     protocol = settings.get("protocol", "openai")
     if protocol not in ("openai", "gemini"):
         raise ValueError("模型协议需为 openai 或 gemini")
+    chat_stream = protocol == "openai" and settings.get("stream", False)
     key = os.environ.get(settings.get("key_environment", "KARNOK_ADVISOR_API_KEY"), "")
     if not key and settings.get("key_file"):
         key = Path(settings["key_file"]).read_text(encoding="utf-8-sig").strip()
@@ -100,9 +130,10 @@ def request_ranking(settings: dict, snapshot: dict, local: dict, context: dict) 
         body = {"model": model, "messages": [{"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)}]}
         if response_format == "json_object": body["response_format"] = {"type": "json_object"}
+        if chat_stream: body["stream"] = True
         endpoint = base + "/chat/completions"
     headers = {"Content-Type": "application/json"}
-    if protocol == "gemini": headers["Accept"] = "text/event-stream"
+    if protocol == "gemini" or chat_stream: headers["Accept"] = "text/event-stream"
     if key: headers["Authorization"] = "Bearer " + key
     request = Request(endpoint, data=json.dumps(body).encode(), headers=headers, method="POST")
     try:
@@ -114,6 +145,8 @@ def request_ranking(settings: dict, snapshot: dict, local: dict, context: dict) 
     if len(raw) > 262144: raise ValueError("模型响应过大")
     if protocol == "gemini":
         return validate_ranking(decode_gemini_stream(raw), local)
+    if chat_stream:
+        return validate_ranking(decode_chat_stream(raw), local)
     message = json.loads(raw)["choices"][0]["message"]
     if message.get("refusal"): raise ValueError("模型未提供排序")
     return validate_ranking(parse_ranking_json(message["content"]), local)
