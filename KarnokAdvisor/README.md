@@ -14,7 +14,9 @@
 Copy-Item .\settings.example.json .\settings.json
 ```
 
-`settings.example.json` 列出支持的配置项。缓存目录留空时，使用当前 Windows 用户的游戏缓存。模型接口默认关闭，未配置时使用本地规则估算。启用兼容 Chat Completions 的接口后，将对局状态和候选方案发送给配置的服务进行排序；模型结果仍受本地可执行性校验约束。密钥通过配置所指定的环境变量或本机文件提供，配置和密钥文件保留在本地。
+`settings.example.json` 列出支持的配置项。缓存目录留空时，使用当前 Windows 用户的游戏缓存。模型接口默认关闭，未配置时使用本地规则估算。启用模型后，将对局状态和候选方案发送给配置的服务进行排序；模型结果仍受本地可执行性校验约束。密钥通过配置所指定的环境变量或本机文件提供，配置和密钥文件保留在本地。
+
+`model_api.protocol` 支持 `openai`（Chat Completions）和 `gemini`（原生 `streamGenerateContent`）。前者的 `base_url` 指向版本根路径，例如 `/v1`；后者例如 `/v1beta`，模型名称填写模型 ID。Gemini 接入使用 Bearer 认证，适用于 Openlux 这类网关。流式结果完整结束且通过校验后才应用到面板；失败时继续使用本地规则。
 
 关闭游戏后，构建并安装。通过脚本参数指定本机的游戏目录和 Python 路径：
 

@@ -3,19 +3,21 @@ from contextlib import contextmanager
 import ctypes
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalog import Catalog, atomic_json, read_json
 from engine import Engine, UnknownRule
 from advisor import serve, snapshot_age
-from model_api import request_ranking, validate_ranking
+from model_api import decode_gemini_stream, parse_ranking_json, request_ranking, validate_ranking
 
 
 @contextmanager
@@ -228,6 +230,87 @@ class ModelTests(unittest.TestCase):
         try:
             result = request_ranking({'base_url': f'http://127.0.0.1:{server.server_port}/v1', 'model': 'test-model'}, {}, self.local, {})
             self.assertEqual(result[0]['action_id'], 'a')
+        finally: server.shutdown(); server.server_close(); thread.join()
+
+    def test_gemini_stream_contract_and_verified_facts(self):
+        outer = self
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                outer.assertEqual(self.path, '/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse')
+                outer.assertEqual(self.headers['Authorization'], 'Bearer test-only-token')
+                outer.assertEqual(self.headers['Accept'], 'text/event-stream')
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                outer.assertIn('systemInstruction', body)
+                outer.assertEqual(body['generationConfig']['responseMimeType'], 'application/json')
+                outer.assertEqual(body['generationConfig']['maxOutputTokens'], 4096)
+                data = json.loads(body['contents'][0]['parts'][0]['text'])
+                outer.assertEqual([c['action_id'] for c in data['candidates']], ['a'])
+                answer = '```json\n'+json.dumps({'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': '保留经济空间'}]}, ensure_ascii=False)+'\n```'
+                chunks = [
+                    {'candidates': [{'content': {'parts': [{'thought': True, 'text': 'test-only non-answer'}]}, 'index': 0}]},
+                    {'candidates': [{'content': {'parts': [{'text': answer[:30]}]}, 'index': 0}]},
+                    {'candidates': [{'content': {'parts': [{'text': answer[30:]}]}, 'index': 0, 'finishReason': 'STOP'}]},
+                    {'usageMetadata': {'totalTokenCount': 100}}]
+                raw = (': keepalive\r\n\r\n' + ''.join('data: '+json.dumps(c, ensure_ascii=False)+'\r\n\r\n' for c in chunks)).encode('utf-8')
+                self.send_response(200); self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Content-Length', str(len(raw))); self.end_headers(); self.wfile.write(raw)
+            def log_message(self, *_): pass
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            with patch.dict(os.environ, {'KARNOK_TEST_API_KEY': 'test-only-token'}):
+                result = request_ranking({'protocol': 'gemini', 'base_url': f'http://127.0.0.1:{server.server_port}/v1beta',
+                                          'model': 'gemini-3.8-flash', 'key_environment': 'KARNOK_TEST_API_KEY'}, {}, self.local, {})
+            self.assertEqual(result[0]['action_id'], 'a')
+            self.assertIn('实际价格2金币', result[0]['reasons'])
+            self.assertIn('保留经济空间', result[0]['reasons'][0])
+        finally: server.shutdown(); server.server_close(); thread.join()
+
+    def test_gemini_stream_rejects_partial_or_blocked_answers(self):
+        answer = json.dumps({'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': 'r'}]})
+        for finish in (None, 'MAX_TOKENS', 'SAFETY'):
+            candidate = {'content': {'parts': [{'text': answer}]}}
+            if finish: candidate['finishReason'] = finish
+            raw = ('data: '+json.dumps({'candidates': [candidate]})+'\n\n').encode()
+            with self.subTest(finish=finish), self.assertRaises(ValueError):
+                decode_gemini_stream(raw)
+
+    def test_ranking_json_accepts_one_complete_fence_and_rejects_extra_text(self):
+        payload = {'snapshot_id': 'now', 'ranking': [{'action_id': 'a', 'reason': 'r'}]}
+        content = json.dumps(payload)
+        fenced = '```json\n'+content+'\n```'
+        for text in (content, fenced):
+            self.assertEqual(parse_ranking_json(text), payload)
+        for text in ('explanation\n'+fenced, fenced+'\nextra text', fenced+'\n'+fenced):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                parse_ranking_json(text)
+
+    def test_gemini_stream_does_not_expose_provider_error_body(self):
+        raw = b'data: {"error":{"message":"test-only-sensitive-provider-text"}}\n\n'
+        with self.assertRaises(RuntimeError) as raised:
+            decode_gemini_stream(raw)
+        self.assertNotIn('test-only-sensitive-provider-text', str(raised.exception))
+
+    def test_unknown_model_protocol_is_rejected(self):
+        with self.assertRaises(ValueError):
+            request_ranking({'protocol': 'unknown', 'base_url': 'http://127.0.0.1/v1', 'model': 'test'}, {}, self.local, {})
+
+    def test_model_credentials_are_not_forwarded_on_redirect(self):
+        followed = []
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers['Content-Length']))
+                self.send_response(302); self.send_header('Location', '/another-target'); self.end_headers()
+            def do_GET(self):
+                followed.append(True)
+                self.send_response(200); self.end_headers()
+            def log_message(self, *_): pass
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'HTTP 302'):
+                request_ranking({'base_url': f'http://127.0.0.1:{server.server_port}/v1', 'model': 'test'}, {}, self.local, {})
+            self.assertEqual(followed, [])
         finally: server.shutdown(); server.server_close(); thread.join()
 
 

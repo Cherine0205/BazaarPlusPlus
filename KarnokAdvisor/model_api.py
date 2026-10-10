@@ -1,13 +1,46 @@
-"""Optional Chat Completions-compatible reranking, constrained to checked actions."""
+"""Optional model reranking over Chat Completions or Gemini SSE, using checked actions."""
 from __future__ import annotations
 
 import copy
 import json
 import os
 from pathlib import Path
+import re
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Send the credential only to the configured API endpoint.
+        return None
+
+
+def parse_ranking_json(text: str) -> dict:
+    fenced = re.fullmatch(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n```", text.strip(), re.IGNORECASE | re.DOTALL)
+    return json.loads(fenced.group(1) if fenced else text)
+
+
+def decode_gemini_stream(raw: bytes) -> dict:
+    text_parts, finish = [], None
+    for frame in raw.decode("utf-8-sig").replace("\r\n", "\n").split("\n\n"):
+        data = "\n".join(line[5:].lstrip(" ") for line in frame.splitlines() if line.startswith("data:"))
+        if not data or data.strip() == "[DONE]":
+            continue
+        chunk = json.loads(data)
+        if "error" in chunk:
+            raise RuntimeError("模型 API 流式响应报告错误")
+        for candidate in chunk.get("candidates", []):
+            if candidate.get("index", 0) != 0:
+                continue
+            for part in candidate.get("content", {}).get("parts", []):
+                if isinstance(part.get("text"), str) and not part.get("thought"):
+                    text_parts.append(part["text"])
+            finish = candidate.get("finishReason") or finish
+    if finish != "STOP" or not text_parts:
+        raise ValueError("模型流式响应未正常完成")
+    return parse_ranking_json("".join(text_parts))
 
 
 def validate_ranking(payload: dict, local: dict) -> list[dict]:
@@ -40,6 +73,9 @@ def request_ranking(settings: dict, snapshot: dict, local: dict, context: dict) 
         raise ValueError("远程 API 需使用 HTTPS")
     model = settings.get("model", "")
     if not model: raise ValueError("尚未配置模型名称")
+    protocol = settings.get("protocol", "openai")
+    if protocol not in ("openai", "gemini"):
+        raise ValueError("模型协议需为 openai 或 gemini")
     key = os.environ.get(settings.get("key_environment", "KARNOK_ADVISOR_API_KEY"), "")
     if not key and settings.get("key_file"):
         key = Path(settings["key_file"]).read_text(encoding="utf-8-sig").strip()
@@ -52,20 +88,32 @@ def request_ranking(settings: dict, snapshot: dict, local: dict, context: dict) 
               "考虑声望、生存、经济、成长和现有阵容联动。数值未解析时明确不确定。"
               "返回 JSON 对象：{\"snapshot_id\":输入值,\"ranking\":[{\"action_id\":动作ID,\"reason\":中文理由}]}。最多3项。")
     user = {"snapshot_id": local["snapshot_id"], "state": context, "candidates": legal}
-    body = {"model": model, "messages": [{"role": "system", "content": system},
-            {"role": "user", "content": json.dumps(user, ensure_ascii=False)}]}
     response_format = settings.get("response_format", "json_object")
-    if response_format == "json_object": body["response_format"] = {"type": "json_object"}
+    if protocol == "gemini":
+        body = {"systemInstruction": {"parts": [{"text": system}]},
+                "contents": [{"role": "user", "parts": [{"text": json.dumps(user, ensure_ascii=False)}]}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096}}
+        if response_format == "json_object":
+            body["generationConfig"]["responseMimeType"] = "application/json"
+        endpoint = base + "/models/" + quote(model, safe="") + ":streamGenerateContent?alt=sse"
+    else:
+        body = {"model": model, "messages": [{"role": "system", "content": system},
+                {"role": "user", "content": json.dumps(user, ensure_ascii=False)}]}
+        if response_format == "json_object": body["response_format"] = {"type": "json_object"}
+        endpoint = base + "/chat/completions"
     headers = {"Content-Type": "application/json"}
+    if protocol == "gemini": headers["Accept"] = "text/event-stream"
     if key: headers["Authorization"] = "Bearer " + key
-    request = Request(base + "/chat/completions", data=json.dumps(body).encode(), headers=headers, method="POST")
+    request = Request(endpoint, data=json.dumps(body).encode(), headers=headers, method="POST")
     try:
-        with urlopen(request, timeout=min(45, max(3, settings.get("timeout_seconds", 20)))) as response:
+        with build_opener(_NoRedirect()).open(request, timeout=min(45, max(3, settings.get("timeout_seconds", 20)))) as response:
             raw = response.read(262145)
     except HTTPError as error:
         # Provider bodies and request headers may contain credentials; never log them.
         raise RuntimeError(f"模型 API 返回 HTTP {error.code}") from None
     if len(raw) > 262144: raise ValueError("模型响应过大")
+    if protocol == "gemini":
+        return validate_ranking(decode_gemini_stream(raw), local)
     message = json.loads(raw)["choices"][0]["message"]
     if message.get("refusal"): raise ValueError("模型未提供排序")
-    return validate_ranking(json.loads(message["content"]), local)
+    return validate_ranking(parse_ranking_json(message["content"]), local)
