@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>KarnokAdvisor</AssemblyName>
+    <Version>0.1.0</Version>
+    <GameDirectory Condition="'$(GameDirectory)' == ''">D:\SteamLibrary\steamapps\common\The Bazaar</GameDirectory>
+    <ManagedDirectory>$(GameDirectory)\TheBazaar_Data\Managed</ManagedDirectory>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx" HintPath="$(GameDirectory)\BepInEx\core\BepInEx.dll" Private="false" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(ManagedDirectory)\Newtonsoft.Json.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDirectory)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDirectory)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDirectory)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDirectory)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(ManagedDirectory)\UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(ManagedDirectory)\UnityEngine.UI.dll" Private="false" />
+  </ItemGroup>
+</Project>
