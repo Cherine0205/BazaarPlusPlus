@@ -45,6 +45,10 @@ internal sealed class AdvisorPanel : IDisposable
     private readonly Texture2D _diamond;
     private Rect _window;
     private Vector2 _scroll;
+    private Vector2 _guideScroll;
+    private bool _showGuide;
+    private bool _manualRoute;
+    private string _selectedRoute = "";
     private float _scale = 1;
     private string _lastFirstAction = "";
     private bool _initialized;
@@ -174,12 +178,11 @@ internal sealed class AdvisorPanel : IDisposable
         DrawHeader();
         DrawStats();
         var rows = _recommendation?["recommendations"] as JArray;
-        Label(new Rect(Padding, 174, 200, 22), PhaseTitle(), _body, Gold);
-        if (rows != null && rows.Count > 0)
-            Label(new Rect(Width - 113, 175, 90, 20), rows.Count + " 个方案", _small, Muted, TextAnchor.MiddleRight);
-
-        var viewport = new Rect(14, 205, Width - 28, Math.Max(80, _window.height - 265));
-        if (rows == null || rows.Count == 0) DrawEmpty(viewport);
+        if (GUI.Button(new Rect(Padding, 173, 187, 28), (_showGuide ? "" : "◆ ") + PhaseTitle(), _smallButton)) _showGuide = false;
+        if (GUI.Button(new Rect(220, 173, 187, 28), (_showGuide ? "◆ " : "") + "阵容参考", _smallButton)) _showGuide = true;
+        var viewport = new Rect(14, 213, Width - 28, Math.Max(80, _window.height - 273));
+        if (_showGuide) DrawStrategy(viewport);
+        else if (rows == null || rows.Count == 0) DrawEmpty(viewport);
         else DrawRecommendations(viewport, rows);
         DrawFooter();
         GUI.DragWindow(new Rect(0, 0, Width - 50, 94));
@@ -360,6 +363,116 @@ internal sealed class AdvisorPanel : IDisposable
         Label(new Rect(Width / 2 - 25, centerY - 23, 50, 42), "K", _title, Gold, TextAnchor.MiddleCenter);
         Label(new Rect(38, centerY + 46, Width - 76, 34), title, _cardTitle, Ivory, TextAnchor.MiddleCenter);
         Label(new Rect(54, centerY + 91, Width - 108, 80), text, _muted, Muted, TextAnchor.UpperCenter);
+    }
+
+    private void DrawStrategy(Rect viewport)
+    {
+        var guide = _recommendation?["strategy"] as JObject;
+        var routes = guide?["routes"] as JArray;
+        if (guide == null || routes == null || routes.Count == 0)
+        {
+            Label(new Rect(viewport.x + 14, viewport.y + 20, viewport.width - 28, 72),
+                "阵容资料加载中。进入游戏后会结合当前状态显示；状态变化时暂停旧阵容判断。", _body, Muted);
+            return;
+        }
+        var index = _manualRoute ? routes.ToList().FindIndex(r => (string?)r["id"] == _selectedRoute) : 0;
+        if (index < 0) index = 0;
+        if (GUI.Button(new Rect(viewport.x + 4, viewport.y, 38, 27), "‹", _button))
+        {
+            index = (index + routes.Count - 1) % routes.Count;
+            _manualRoute = true;
+            _guideScroll = Vector2.zero;
+        }
+        var hasSignal = routes.Any(r => (bool?)r["signal"] == true);
+        var caption = _manualRoute ? "浏览 " : hasSignal ? "按持有核心 " : "流派参考 ";
+        if (GUI.Button(new Rect(viewport.x + 49, viewport.y, viewport.width - 98, 27),
+            caption + (index + 1) + " / " + routes.Count + (_manualRoute ? "  ·  点击恢复匹配" : "  ·  左右浏览"), _smallButton))
+        {
+            _manualRoute = false;
+            index = 0;
+            _guideScroll = Vector2.zero;
+        }
+        if (GUI.Button(new Rect(viewport.xMax - 42, viewport.y, 38, 27), "›", _button))
+        {
+            index = (index + 1) % routes.Count;
+            _manualRoute = true;
+            _guideScroll = Vector2.zero;
+        }
+        var route = (JObject)routes[index];
+        if (!_manualRoute && _selectedRoute != (string?)route["id"]) _guideScroll = Vector2.zero;
+        _selectedRoute = (string?)route["id"] ?? "";
+        var lines = new List<(string Text, GUIStyle Style, Color Color, string Url)>();
+        void Add(string text, GUIStyle? style = null, Color? color = null, string url = "") =>
+            lines.Add((text, style ?? _body, color ?? Ivory, url));
+        Add(Value(route["name"]), _cardTitle, Gold);
+        Add(Value(guide["stage_label"]) + "  ·  " + Value(route["status"]), _muted, Cyan);
+        Add(Value(route["summary"]));
+        if ((bool?)guide["live"] == true)
+        {
+            var owned = Strings(route["owned_board"]);
+            var stash = Strings(route["owned_stash"]);
+            Add("当前在场：" + (owned.Count > 0 ? string.Join("、", owned) : "无此路线组件"), _muted, Green);
+            if (stash.Count > 0) Add("仓库备选：" + string.Join("、", stash) + "（未计为生效联动）", _muted, Muted);
+            var missing = Strings(route["missing_roles"]);
+            if (missing.Count > 0) Add("尚缺功能：" + string.Join("、", missing), _muted, Amber);
+            if ((bool?)route["signal"] != true) Add("还没有这条路线的辨识核心，先保证当日战力。", _muted, Amber);
+        }
+        else Add("当前状态不足以判断持有和缺牌，下面仅供查阅。", _muted, Amber);
+        Add("转型条件", _body, Gold);
+        Add(Value(route["pivot"]), _muted);
+        Add(Value(guide["stage_note"]), _muted, Muted);
+        Add(Value(guide["tier_note"]), _muted, Muted);
+        foreach (var stage in (route["stages"] as JArray ?? new JArray()).OfType<JObject>())
+        {
+            var current = (string?)stage["key"] == (string?)guide["stage"];
+            Add((current ? "◆ 当前阶段  " : "◇ ") + Value(stage["label"]), _body, current ? Gold : Cyan);
+            var slots = Value(stage["slots"]);
+            Add("参考组合 · " + slots + " 格" + ((bool?)guide["live"] == true ? " / 当前解锁 " + Value(guide["unlocked_slots"]) + " 格" : ""), _muted, Muted);
+            var pieces = (stage["items"] as JArray ?? new JArray()).OfType<JObject>().Select(item =>
+                Value(item["name"]) + "［" + Value(item["starting_tier"]) + "·" + Value(item["span"]) + "格"
+                + ((bool?)guide["live"] == true ? "·" + Value(item["owned"]) : "") + "］");
+            Add(string.Join(" / ", pieces));
+            Add(Value(stage["plan"]), _muted);
+        }
+        Add("升级与技能取舍", _body, Gold);
+        Add(Value(route["skills"]), _muted);
+        Add("注意条件", _body, Amber);
+        Add(Value(route["caution"]), _muted, Amber);
+        Add("资料与版本", _body, Gold);
+        Add("复核 " + Value(guide["reviewed_at"]) + " · 对照补丁 " + Value(guide["reviewed_patch"]), _muted, Muted);
+        Add(Value(guide["version_note"]), _muted, (bool?)guide["verified"] == true ? Muted : Amber);
+        Add("攻略包含历史版本；点击来源查看原文。浏览路线不改变实际选项或自动操作。", _muted, Muted);
+        foreach (var source in (route["sources"] as JArray ?? new JArray()).OfType<JObject>())
+            Add(Value(source["title"]) + " · " + Value(source["date"]), _muted, Gold, (string?)source["url"] ?? "");
+
+        var scrollView = new Rect(viewport.x, viewport.y + 37, viewport.width, viewport.height - 37);
+        var contentWidth = scrollView.width - 18;
+        var textWidth = contentWidth - 28;
+        var heights = lines.Select(line => TextHeight(line.Style, line.Text, textWidth) + 13).ToList();
+        var contentHeight = heights.Sum() + 24;
+        var limit = Math.Max(0, contentHeight - scrollView.height);
+        _guideScroll.y = Mathf.Clamp(_guideScroll.y, 0, limit);
+        _guideScroll = GUI.BeginScrollView(scrollView, _guideScroll, new Rect(0, 0, contentWidth, contentHeight), false, false, GUIStyle.none, GUIStyle.none);
+        GUI.Box(new Rect(3, 0, contentWidth - 3, contentHeight), GUIContent.none, _secondary);
+        var y = 14f;
+        for (var n = 0; n < lines.Count; n++)
+        {
+            var line = lines[n];
+            var rect = new Rect(16, y, textWidth, heights[n] - 9);
+            if (line.Url.Length > 0)
+            {
+                if (GUI.Button(rect, line.Text, _smallButton)) Application.OpenURL(line.Url);
+            }
+            else Label(rect, line.Text, line.Style, line.Color);
+            y += heights[n];
+        }
+        GUI.EndScrollView();
+        if (limit > 0)
+        {
+            _scrollThumb.fixedHeight = Math.Max(30, scrollView.height * scrollView.height / contentHeight);
+            _guideScroll.y = GUI.VerticalSlider(new Rect(scrollView.xMax - 7, scrollView.y, 6, scrollView.height),
+                _guideScroll.y, 0, limit, _scrollTrack, _scrollThumb);
+        }
     }
 
     private void DrawFooter()

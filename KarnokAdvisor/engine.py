@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from catalog import Catalog, SIZES, TIERS, TIER_ZH
+from strategy import StrategyBook
 
 CHANNELS = {"DamageAmount": (1.0, "伤害"), "ShieldApplyAmount": (0.8, "护盾"),
             "HealAmount": (0.55, "治疗"), "BurnApplyAmount": (2.0, "灼烧"),
@@ -69,8 +70,9 @@ class Benefit:
 
 
 class Engine:
-    def __init__(self, catalog: Catalog):
+    def __init__(self, catalog: Catalog, *, strategy_data=None):
         self.catalog = catalog
+        self.strategies = StrategyBook(catalog, strategy_data)
 
     def prepare(self, snapshot: dict) -> dict:
         state = copy.deepcopy(snapshot)
@@ -189,7 +191,7 @@ class Engine:
         seconds = max(0.5, cooldown / 1000) if isinstance(cooldown, (int, float)) and cooldown > 0 else 6.0
         direct = sum(max(0, attrs.get(key, 0)) * weight for key, (weight, _) in CHANNELS.items())
         direct *= 1 + max(0, attrs.get("CritChance", 0)) / 100
-        direct *= 1 + max(0, attrs.get("Multicast", 0))
+        direct *= max(1, attrs.get("Multicast", 1))
         tier = TIERS.index(card["tier"]) + 1 if card.get("tier") in TIERS else 1
         # A small floor keeps passive cards visible without inventing their unparsed effects.
         score = 1.5 * tier + direct / seconds
@@ -235,6 +237,11 @@ class Engine:
                 if action.get("Duration"): raise UnknownRule("属性变化有持续时间，不能作为永久收益计入")
                 benefit.score += delta * weights[attribute]
                 benefit.reasons.append(f"{names[attribute]}变化 {delta:+g}（按游戏规则计算）")
+                if attribute == "HealthMax":
+                    adjustment = self.strategies.health_adjustment(state, delta)
+                    if adjustment:
+                        benefit.score += adjustment
+                        benefit.reasons.append(f"场上已有生命关联武器，生命路线估算调整 {adjustment:+.1f}（非胜率）")
                 benefit.known += 1
                 benefit.player_changes[attribute] = delta
                 if attribute == "Gold":
@@ -256,16 +263,57 @@ class Engine:
                 benefit.reasons.append(f"{count} 件符合条件的物品各获得 {value:+g} {CHANNELS[attribute][1]}")
                 benefit.known += 1
             elif t == "TActionCardUpgrade":
-                affected = self.targets(action.get("Target"), state, source)
-                upgrades = [c for c in affected if c.get("tier") in TIERS[:-1]]
-                benefit.score += sum(max(2.0, self.power(c, state) * 0.35) for c in upgrades)
-                benefit.reasons.append(f"可升级目标 {len(upgrades)} 件；收益为规则估算")
-                benefit.known += 1
+                benefit.add(self.upgrade(action, state, source))
             else:
                 raise UnknownRule("暂未量化效果：" + (t or "unknown"))
         except UnknownRule as error:
             benefit.uncertainties.append(str(error))
-            if "Destroy" in t or "Transform" in t or "消耗" in str(error): benefit.critical_unknown = True
+            if ("Destroy" in t or "Transform" in t or "消耗" in str(error)
+                    or t == "TActionCardUpgrade" and not action.get("InheritEnchantment", True)):
+                benefit.critical_unknown = True
+        return benefit
+
+    def upgrade(self, action: dict, state: dict, source: dict) -> Benefit:
+        affected = self.targets(action.get("Target"), state, source)
+        if action.get("TargetCount"):
+            count = max(0, int(self.value(action["TargetCount"], state, source)))
+            if 0 < count < len(affected):
+                raise UnknownRule("升级只影响部分目标，实际目标未确定，暂停量化")
+            if count == 0: affected = []
+        destination = action.get("UpgradeToTier")
+        if destination is not None and destination not in TIERS:
+            raise UnknownRule("升级目标品质未解析")
+        benefit, replacements = Benefit(known=1), {}
+        for card in affected:
+            tier = card.get("tier")
+            if tier not in TIERS: raise UnknownRule("升级前品质未读取")
+            index = TIERS.index(tier)
+            next_tier = destination or TIERS[min(index + 1, len(TIERS) - 1)]
+            if TIERS.index(next_tier) <= index: continue
+            template = self.catalog.cards.get(card["template_id"], {})
+            tiers = template.get("Tiers", {})
+            if tier not in tiers or next_tier not in tiers:
+                raise UnknownRule("本地模板缺少升级品质，暂停量化")
+            if card.get("enchantment") not in (None, "", "None") and not action.get("InheritEnchantment", True):
+                raise UnknownRule("升级不继承附魔，暂未量化附魔损失")
+            previous = tiers[tier].get("Attributes", {})
+            following = tiers[next_tier].get("Attributes", {})
+            upgraded = copy.deepcopy(card)
+            upgraded["tier"] = next_tier
+            upgraded["attributes"] = {key: card["attributes"].get(key, previous.get(key, 0))
+                                      + following.get(key, 0) - previous.get(key, 0)
+                                      for key in card["attributes"].keys() | previous.keys() | following.keys()}
+            benefit.score += self.power(upgraded, state) - self.power(card, state)
+            benefit.reasons.append(f"升级 {card['name']} 至{TIER_ZH[next_tier]}；按模板差值估算，保留已读强化偏移")
+            replacements[id(card)] = upgraded
+        if replacements:
+            trial = {**state, "board": [replacements.get(id(c), c) for c in state["board"]]}
+            delta, reasons = self.strategies.change(state, trial)
+            benefit.score += delta
+            benefit.reasons.extend(reasons)
+            benefit.uncertainties.append("升级后的被动、附魔和触发速度未完整模拟，模板差值不是实战收益保证")
+        else:
+            benefit.reasons.append("当前没有能提升至指定品质的目标")
         return benefit
 
     def spawn(self, context: dict, rules: dict, state: dict, source: dict, depth: int) -> Benefit:
@@ -371,6 +419,8 @@ class Engine:
             result["uncertainties"].append("场上物品位置不完整，无法可靠计算换卡")
             return result
         baseline = sum(self.power(c, state) for c in board)
+        baseline_blade = self.strategies.find(board, ["Lost Blade"])
+        baseline_solo = sum(c["attributes"].get("CooldownMax", 0) > 0 for c in board) == 1 if baseline_blade else None
         best = None
         for start in range(max(unlocked, default=-1) + 1):
             slots = set(range(start, start + span))
@@ -380,19 +430,28 @@ class Engine:
             sales = sum(c["attributes"]["SellPrice"] for c in removed)
             if sales < 0 or gold + sales < price: continue
             retained = [c for c in board if c not in removed]
-            trial = {**state, "board": retained + [option]}
+            trial = {**state, "board": retained + [{**option, "socket": start}]}
+            # A sole-active Lost Blade changes cooldown when another active item is added.
+            # The existing stat estimator cannot safely propagate that aura counterfactual.
+            if self.strategies.verified and self.strategies.find(trial["board"], ["Lost Blade"]):
+                trial_solo = sum(c["attributes"].get("CooldownMax", 0) > 0 for c in trial["board"]) == 1
+                if (baseline_solo is None and not trial_solo) or (baseline_solo is not None and baseline_solo != trial_solo):
+                    continue
             gain = sum(self.power(c, trial) for c in trial["board"]) - baseline
+            synergy, synergy_reasons = self.strategies.change(state, trial)
             risk = 1.4 if state.get("player_attributes", {}).get("Prestige", 20) <= 5 else 1.0
-            score = gain * risk - (price - sales) * self.gold_value(state) * 0.5
-            plan = (score, gain, start, removed, sales)
+            score = gain * risk + synergy - (price - sales) * self.gold_value(state) * 0.5
+            plan = (score, gain, start, removed, sales, synergy, synergy_reasons)
             if best is None or (score, -len(removed), -start) > (best[0], -len(best[3]), -best[2]): best = plan
         if best is None:
-            result["uncertainties"].append("金币不足，或没有能通过当前摆位与售出价格校验的连续位置")
+            result["uncertainties"].append("金币或连续摆位未通过校验，或涉及尚未支持的失落之刃单主动条件")
             return result
-        score, gain, start, removed, sales = best
+        score, gain, start, removed, sales, synergy, synergy_reasons = best
         result.update(eligible=True, score=score)
         result["reasons"].append(f"实际购买价格 {price:g} 金币；操作后预计剩余 {gold+sales-price:g} 金币")
         result["reasons"].append(f"已校验第 {start+1}–{start+span} 格连续可用；阵容强度估算变化 {gain:+.1f}")
+        if synergy_reasons:
+            result["reasons"].append(f"攻略联动估算变化 {synergy:+.1f}；" + "；".join(synergy_reasons))
         if removed:
             result["reasons"].append("替换方案按先卖出腾位计算，请确认愿意放弃这些物品")
             result["steps"].extend(f"先卖出 {c['name']}（实际售值 {c['attributes']['SellPrice']:g} 金币）" for c in removed)
@@ -402,8 +461,9 @@ class Engine:
         return result
 
     def recommend(self, snapshot: dict) -> dict:
+        state = self.prepare(snapshot)
         base = {"snapshot_id": snapshot.get("snapshot_id", ""), "summary": "", "model_status": "本地规则估算 · 模型接口未配置",
-                "recommendations": [], "candidates": [], "notes": []}
+                "recommendations": [], "candidates": [], "notes": [], "strategy": self.strategies.reference(state)}
         if snapshot.get("status") != "live":
             base["summary"] = "等待进入对局" if snapshot.get("status") != "read_error" else "状态读取失败，已停止推荐"
             return base
@@ -413,7 +473,6 @@ class Engine:
         if snapshot.get("hero") != "Karnok":
             base["summary"] = "第一版仅支持卡诺克"
             return base
-        state = self.prepare(snapshot)
         if not state["options"]:
             base["summary"] = "等待事件、升级或商店选项"
             return base
@@ -452,6 +511,8 @@ class Engine:
                 candidate["eligible"] = False
                 candidate["uncertainties"].append(str(error))
             candidates.append(candidate)
+            hint = self.strategies.option_hint(source) if self.strategies.verified else ""
+            if hint: candidate["reasons"].append(hint)
         if state.get("selection_rules", {}).get("can_exit"):
             candidates.append({"action_id": "__skip__", "title": "保留金币，离开当前选择", "score": 0.0, "eligible": True,
                                "reasons": ["游戏允许退出；保留当前阵容与金币，避免为收益不足的选项付费"], "steps": [], "uncertainties": []})
