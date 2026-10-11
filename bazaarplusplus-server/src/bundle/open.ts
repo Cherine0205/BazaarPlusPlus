@@ -1,4 +1,4 @@
-import { HttpError, invalidBundle } from "../errors";
+import { apiError, HttpError, invalidBundle } from "../errors";
 import {
   MAX_BATTLES_PER_BUNDLE,
   MAX_BUNDLE_BYTES,
@@ -14,7 +14,13 @@ import {
   validBundleId,
   validIdentifier,
 } from "./manifest";
-import { BUNDLE_PREFIX_BYTES, BUNDLE_VERSION, parseBundlePrefix } from "./prefix";
+import {
+  BUNDLE_PREFIX_BYTES,
+  BUNDLE_VERSION,
+  parseBundlePrefix,
+  RUN_CONTENT_TYPE,
+  RUN_FORMAT_VERSION,
+} from "./prefix";
 
 const STREAM_CHUNK_BYTES = 64 * 1024;
 const encoder = new TextEncoder();
@@ -52,12 +58,7 @@ function createBodyReader(body: ReadableStream<Uint8Array>): BoundedBodyReader {
         const requested = new Uint8Array(Math.min(STREAM_CHUNK_BYTES, length - offset));
         const result = await reader.read(requested);
         if (result.done || result.value.byteLength === 0) {
-          throw new HttpError(
-            400,
-            "invalid_content_length",
-            "Bundle body ended before Content-Length",
-            false,
-          );
+          throw apiError("invalid_content_length", "Bundle body ended before Content-Length");
         }
         output.set(result.value, offset);
         offset += result.value.byteLength;
@@ -176,8 +177,8 @@ function projectionBattle(value: unknown, uploader: string): ValidatedBattleProj
     encounter_id: nullableString(source.encounter_id, "battle.encounter_id"),
     combat_kind: identifier(source.combat_kind, "battle.combat_kind"),
     result: identifier(source.result, "battle.result"),
-    winner_combatant_id: nullableString(source.winner_combatant_id, "battle.winner_combatant_id"),
-    loser_combatant_id: nullableString(source.loser_combatant_id, "battle.loser_combatant_id"),
+    winner_combatant_id: identifier(source.winner_combatant_id, "battle.winner_combatant_id"),
+    loser_combatant_id: identifier(source.loser_combatant_id, "battle.loser_combatant_id"),
     is_final_battle: source.is_final_battle,
     player,
     opponent,
@@ -219,20 +220,15 @@ function validateManifest(
 ): ValidatedBundleDescriptor {
   const root = parseJson(bytes);
   if (root.bundle_version !== BUNDLE_VERSION) {
-    throw new HttpError(
-      422,
-      "unsupported_bundle_version",
-      "Manifest Bundle version is not supported",
-      false,
-    );
+    throw apiError("unsupported_bundle_version", "Manifest Bundle version is not supported");
   }
   if (typeof root.bundle_id !== "string" || !validBundleId(root.bundle_id)) {
     throw invalidBundle("manifest_schema_invalid", "bundle_id must be a canonical ULID");
   }
   const createdAtMs = safeInteger(root.created_at_ms, "created_at_ms");
   const run = object(root.run);
-  if (run.run_format_version !== 5) {
-    throw new HttpError(422, "unsupported_run_format", "Run format is not supported", false);
+  if (run.run_format_version !== RUN_FORMAT_VERSION) {
+    throw apiError("unsupported_run_format", "Run format is not supported");
   }
   const runId = identifier(run.run_id, "run.run_id");
   const uploader = identifier(run.player_account_id, "run.player_account_id");
@@ -248,7 +244,7 @@ function validateManifest(
   if (runLength >= MAX_RUN_BYTES + 1) {
     throw invalidBundle("run_too_large", "Run segment reaches the 2 MiB limit");
   }
-  if (payload.content_type !== "application/x-bpp-run-v5") {
+  if (payload.content_type !== RUN_CONTENT_TYPE) {
     throw invalidBundle("manifest_schema_invalid", "Run content type is invalid");
   }
   if (typeof payload.sha256 !== "string" || !SHA256.test(payload.sha256)) {
@@ -312,7 +308,6 @@ function validateManifest(
       offset,
       length,
       sha256: image.sha256,
-      contentType: image.content_type,
     };
   }
 
@@ -393,11 +388,9 @@ function validateBundleBody(
       try {
         const nextPosition = position + chunk.byteLength;
         if (nextPosition > descriptor.objectBytes) {
-          throw new HttpError(
-            nextPosition >= MAX_BUNDLE_BYTES ? 413 : 400,
+          throw apiError(
             nextPosition >= MAX_BUNDLE_BYTES ? "bundle_too_large" : "invalid_content_length",
             "Actual Bundle length exceeds Content-Length",
-            false,
           );
         }
         await bundleWriter.write(chunk);
@@ -418,11 +411,9 @@ function validateBundleBody(
     async flush() {
       try {
         if (position !== descriptor.objectBytes) {
-          throw new HttpError(
-            400,
+          throw apiError(
             "invalid_content_length",
             "Actual Bundle length differs from Content-Length",
-            false,
           );
         }
         await Promise.all([
@@ -433,21 +424,14 @@ function validateBundleBody(
           segmentDigests.map(({ digest }) => digest.then(toHex)),
         );
         if (segmentHashes.some((digest, index) => digest !== segmentDigests[index].expected)) {
-          throw new HttpError(
-            422,
+          throw apiError(
             "segment_digest_mismatch",
             "A Bundle segment digest does not match its manifest",
-            false,
           );
         }
         const actual = toHex(await bundleDigest.digest);
         if (expectedBundleDigest !== null && actual !== expectedBundleDigest) {
-          throw new HttpError(
-            422,
-            "bundle_digest_mismatch",
-            "Bundle digest does not match Content-Digest",
-            false,
-          );
+          throw apiError("bundle_digest_mismatch", "Bundle digest does not match Content-Digest");
         }
         resolveDigest(actual);
       } catch (error) {

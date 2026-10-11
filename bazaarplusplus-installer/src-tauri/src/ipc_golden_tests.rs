@@ -1,6 +1,6 @@
-//! IPC JSON goldens: the DTOs `get_install_state`, `list_history_runs`,
-//! `get_history_run_detail` and `preview_storage_cleanup` return to the
-//! frontend, produced by the service layer each command wraps from a fixture
+//! IPC JSON goldens: the DTOs `get_install_state`, `get_legacy_data_state`,
+//! `import_v5_history`, `delete_legacy_root`, `list_history_runs`,
+//! `get_history_run_detail` and `preview_storage_cleanup` return to the frontend, produced by the service layer each command wraps from a fixture
 //! game directory and database. The commands themselves are not driven through
 //! the IPC bridge: through IPC, `get_install_state` and history path resolution
 //! read the host's Steam installation and bundled resources (see #154), so the
@@ -13,10 +13,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::goldens::{assert_golden, json};
-use crate::history::test_schema::create_mod_schema;
+use crate::history::mod_schema::create_mod_schema;
 use crate::services::detect::InstallEnvironmentSnapshot;
 use crate::services::history::{History, StorageCleanupPreset, StorageCleanupScope};
 use crate::services::install::install_state_from_snapshot;
+use crate::services::legacy_data;
 use crate::services::paths;
 use crate::services::vdf::SteamLaunchOptionsState;
 use crate::stream::history_thumbnails::HistoryThumbnails;
@@ -116,6 +117,101 @@ fn get_install_state() {
     );
 }
 
+/// Every Legacy Root with a few bytes, the current Data Root, and a 6.x mod
+/// contract, as an upgraded 5.x user's game directory looks before importing.
+fn seed_legacy_roots(fixture: &Fixture) {
+    let game = &fixture.game;
+    #[cfg(target_os = "macos")]
+    std::fs::create_dir_all(game.join("TheBazaar.app")).unwrap();
+    #[cfg(target_os = "windows")]
+    write(&game.join("TheBazaar.exe"), b"exe");
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    write(&game.join("TheBazaar"), b"exe");
+    write(&game.join("BazaarPlusPlus/bazaarplusplus.db"), &[0; 12]);
+    write(&game.join("BazaarPlusPlusV4/bazaarplusplus.db"), &[0; 34]);
+    write(&game.join("BazaarPlusPlusV5/bazaarplusplus.db"), &[0; 56]);
+    write(&game.join("BazaarPlusPlusV5/Screenshots/run.png"), &[0; 7]);
+    write(&paths::database_path(game), b"current");
+    write(
+        &game.join("BepInEx/plugins/BazaarPlusPlus.history-database.json"),
+        format!(
+            r#"{{ "formatVersion": 1, "dataRootDirectoryName": "{}", "historyDatabaseUserVersion": 1 }}"#,
+            crate::config::BAZAAR_DATA_DIRECTORY
+        )
+        .as_bytes(),
+    );
+}
+
+const NO_INSTALLER_SETTINGS: &str = "/nonexistent-installer-settings";
+
+#[test]
+fn get_legacy_data_state() {
+    let fixture = Fixture::new();
+    assert_golden(
+        "ipc/get_legacy_data_state.none.json",
+        &fixture.json(&legacy_data::legacy_data_state(
+            &fixture.game,
+            Path::new(NO_INSTALLER_SETTINGS),
+        )),
+    );
+
+    seed_legacy_roots(&fixture);
+    assert_golden(
+        "ipc/get_legacy_data_state.legacy-roots.json",
+        &fixture.json(&legacy_data::legacy_data_state(
+            &fixture.game,
+            Path::new(NO_INSTALLER_SETTINGS),
+        )),
+    );
+}
+
+#[test]
+fn delete_legacy_root() {
+    let fixture = Fixture::new();
+    seed_legacy_roots(&fixture);
+    let stopped = |_: &Path| Ok(false);
+    assert_golden(
+        "ipc/delete_legacy_root.removed.json",
+        &fixture.json(
+            &legacy_data::delete_legacy_root_blocking_with(
+                &fixture.game,
+                "BazaarPlusPlusV5",
+                Path::new(NO_INSTALLER_SETTINGS),
+                &stopped,
+            )
+            .unwrap(),
+        ),
+    );
+}
+
+/// The V5 fixture game (`v5_import::tests_e2e`) imported with every file
+/// copied, then remeasured: `BazaarPlusPlusV5` stays listed with the marker
+/// inside and is no longer eligible. A game that is running refuses with the
+/// import's own code.
+#[test]
+fn import_v5_history() {
+    use crate::v5_import::tests_e2e::{import_copying, v3_game};
+    use crate::v5_import::ImportV5HistoryResult;
+
+    let fixture = v3_game();
+    let report = import_copying(&fixture, &|_: &Path| Ok(false)).unwrap();
+    let result = ImportV5HistoryResult::new(
+        &report,
+        legacy_data::legacy_data_state(&fixture.game, Path::new(NO_INSTALLER_SETTINGS)),
+    );
+    assert_golden(
+        "ipc/import_v5_history.imported.json",
+        &json(&result, &[(&fixture.game, GAME)]),
+    );
+
+    let running = v3_game();
+    let refused = import_copying(&running, &|_: &Path| Ok(true)).unwrap_err();
+    assert_golden(
+        "ipc/import_v5_history.blocked-by-game.json",
+        &json(&refused.into_problem(), &[(&running.game, GAME)]),
+    );
+}
+
 /// Three runs: a Ranked win with a primary screenshot and two battles (one
 /// recorded) that is not yet sealed into a Bundle, so cleanup must skip it; a
 /// Normal loss under the legacy `Hero8` name whose Bundle is already in the
@@ -139,53 +235,52 @@ fn seed_history(fixture: &Fixture) {
     conn.execute_batch(
         "
         insert into runs (
-            run_id, started_at_utc, last_seen_at_utc, status, completed, hero, game_mode,
-            ended_at_utc, final_day, victories, losses, final_player_rank, final_player_rating
+            run_id, started_at_ms, last_seen_at_ms, status, hero, game_mode,
+            ended_at_ms, final_day, victories, losses, final_player_rank, final_player_rating
         ) values
-            ('run-1', '2026-01-01T09:00:00Z', '2026-01-01T09:42:00Z', 'completed', 1,
-             'Vanessa', 'Ranked', '2026-01-01T09:42:00Z', 12, 10, 2, 'Gold', 1520),
-            ('run-2', '2026-01-02T09:00:00Z', '2026-01-02T09:30:00Z', 'completed', 1,
-             'Hero8', 'Normal', '2026-01-02T09:30:00Z', 8, 4, 5, null, null),
-            ('run-3', '2026-01-03T09:00:00Z', '2026-01-03T09:10:00Z', 'active', 0,
+            ('run-1', 1767258000000, 1767260520000, 'completed',
+             'Vanessa', 'Ranked', 1767260520000, 12, 10, 2, 'Gold', 1520),
+            ('run-2', 1767344400000, 1767346200000, 'completed',
+             'Hero8', 'Normal', 1767346200000, 8, 4, 5, null, null),
+            ('run-3', 1767430800000, 1767431400000, 'active',
              'Mak', 'Ranked', null, 3, 2, 1, null, null);
         insert into battles (
-            battle_id, source, run_id, recorded_at_utc, combat_kind, day, hour, player_name,
-            opponent_hero, opponent_name, opponent_rank, opponent_rating, result,
-            has_local_payload, local_payload_state
+            battle_id, source, run_id, recorded_at_ms, combat_kind, day, hour, player_name,
+            opponent_hero, opponent_name, opponent_rank, opponent_rating, result, local_payload_state
         ) values
-            ('battle-1', 'LOCAL', 'run-1', '2026-01-01T09:10:00Z', 'PVP', 1, 2,
-             'Fixture Player', 'Pygmalien', 'Opponent A', 'Silver', 1400, 'win', 0, 'missing'),
-            ('battle-2', 'LOCAL', 'run-1', '2026-01-01T09:20:00Z', 'PVP', 2, 4,
-             'Fixture Player', 'Dooley', null, null, null, 'loss', 0, 'missing'),
-            ('battle-3', 'LOCAL', 'run-2', '2026-01-02T09:10:00Z', 'PVP', 1, 1,
-             'Fixture Player', 'Stelle', null, null, null, 'loss', 0, 'missing');
+            ('battle-1', 'LOCAL', 'run-1', 1767258600000, 'PVP', 1, 2,
+             'Fixture Player', 'Pygmalien', 'Opponent A', 'Silver', 1400, 'win', 'missing'),
+            ('battle-2', 'LOCAL', 'run-1', 1767259200000, 'PVP', 2, 4,
+             'Fixture Player', 'Dooley', null, null, null, 'loss', 'missing'),
+            ('battle-3', 'LOCAL', 'run-2', 1767345000000, 'PVP', 1, 1,
+             'Fixture Player', 'Stelle', null, null, null, 'loss', 'missing');
         insert into run_screenshots (
             screenshot_id, run_id, hero_name, capture_source, is_primary, image_relative_path,
-            captured_at_utc, captured_at_local, day, victories_at_capture
+            captured_at_ms, captured_utc_offset_minutes, day, victories_at_capture
         ) values
             ('shot-1', 'run-1', 'Vanessa', 'end_of_run_auto', 1, '2026-01-01/run-1.png',
-             '2026-01-01T09:42:00Z', '2026-01-01T17:42:00+08:00', 12, 10),
+             1767260520000, 480, 12, 10),
             ('shot-2', 'run-2', 'Hero8', 'end_of_run_auto', 0, '2026-01-02/run-2.png',
-             '2026-01-02T09:30:00Z', '2026-01-02T17:30:00+08:00', 8, 4);
+             1767346200000, 480, 8, 4);
         insert into combat_replay_videos (
             video_id, battle_id, source, video_relative_path, width, height, fps, codec,
-            started_at_utc, duration_ms, file_size_bytes, status
+            started_at_ms, duration_ms, file_size_bytes, status
         ) values
             ('video-1', 'battle-1', 'GAME_CAPTURE', '2026-01-01/battle-1.mp4', 1920, 1080, 60,
-             'h264', '2026-01-01T09:10:00Z', 95000, 13, 'COMPLETED');
+             'h264', 1767258600000, 95000, 13, 'COMPLETED');
         insert into bundle_outbox (
             bundle_id, run_id, file_name, content_sha256_hex, content_digest, total_bytes,
-            has_screenshot, sealed_at_utc, status
+            has_screenshot, sealed_at_ms, status
         ) values
             ('bundle-2', 'run-2', 'bundle-2.bppbundle', 'ab', 'sha256:ab', 10, 1,
-             '2026-01-02T09:31:00Z', 'pending');
+             1767346260000, 'pending');
         ",
     )
     .unwrap();
 }
 
 fn history(fixture: &Fixture) -> History {
-    History::from_resolved_game_path_for_page_with(Some(fixture.game.clone()), || false).unwrap()
+    History::at_with(Some(fixture.game.clone()), || false).unwrap()
 }
 
 #[test]

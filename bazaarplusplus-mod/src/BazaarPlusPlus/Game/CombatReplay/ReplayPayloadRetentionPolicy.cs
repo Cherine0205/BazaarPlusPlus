@@ -10,6 +10,8 @@ internal readonly record struct ReplayPayloadRetentionSelection(
 
 internal static class ReplayPayloadRetentionPolicy
 {
+    // BazaarPlusPlus.history-database.json restates both values for the installer's V5 import;
+    // ReplayPayloadRetentionPolicyTests keeps them equal.
     internal const int RetainedNewestCount = 200;
     internal static readonly TimeSpan RetainedAge = TimeSpan.FromDays(30);
 
@@ -25,9 +27,7 @@ internal static class ReplayPayloadRetentionPolicy
             throw new ArgumentNullException(nameof(protectedBattleIds));
 
         var ready = inventory
-            .Where(record =>
-                record.HasLocalPayload && record.PayloadState == ReplayPayloadState.Ready
-            )
+            .Where(record => record.PayloadState == ReplayPayloadState.Ready)
             .OrderByDescending(record => record.RecordedAtUtc)
             .ThenByDescending(record => record.BattleId, StringComparer.Ordinal)
             .ToList();

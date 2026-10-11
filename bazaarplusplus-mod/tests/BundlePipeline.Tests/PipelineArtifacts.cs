@@ -19,8 +19,8 @@ using SixLabors.ImageSharp.PixelFormats;
 /// <c>BPP_UPDATE_GOLDENS=1 dotnet run --project tests/BundlePipeline.Tests/BundlePipeline.Tests.csproj</c>
 /// from the mod root, then review <c>git diff tests/BundlePipeline.Tests/fixtures/</c>.
 ///
-/// <c>bundle_id</c>, <c>created_at_ms</c> (UlidV5Generator and the seal clock), the values
-/// derived from them (file name, whole-Bundle SHA-256 and Content-Digest), and <c>*_at_utc</c>
+/// <c>bundle_id</c>, <c>created_at_ms</c> (UlidV6Generator and the seal clock), the values
+/// derived from them (file name, whole-Bundle SHA-256 and Content-Digest), and <c>*_at_ms</c>
 /// are normalized. Gzip/JPEG bytes may differ across runtimes and CPU architectures: pin the
 /// decompressed MessagePack bytes and check decoded screenshot pixels against the input instead.
 /// Encoded lengths and digests are checked against the real Bundle before normalization.
@@ -66,9 +66,9 @@ internal sealed class PipelineArtifacts
     /// Writes the raw Bundle and manifest, validates the manifest against the server-owned
     /// schema before normalization, and records the normalized manifest and checksum entry.
     /// </summary>
-    internal OpenedBundleV5 RecordBundle(string name, byte[] bytes)
+    internal OpenedBundleV6 RecordBundle(string name, byte[] bytes)
     {
-        var opened = BundleV5Codec.Open(bytes);
+        var opened = BundleV6Codec.Open(bytes);
         File.WriteAllBytes(Path.Combine(_directory, name + ".bundle"), bytes);
         File.WriteAllBytes(Path.Combine(_directory, name + ".manifest.json"), opened.ManifestBytes);
 
@@ -99,7 +99,7 @@ internal sealed class PipelineArtifacts
             _runPayloads[name] = new JsonObject
             {
                 ["messagepack_bytes"] = unpacked.Length,
-                ["sha256"] = BundleV5Codec.ComputeSha256Hex(unpacked.ToArray()),
+                ["sha256"] = BundleV6Codec.ComputeSha256Hex(unpacked.ToArray()),
             };
         }
         if (opened.Screenshot is { } screenshot)
@@ -132,12 +132,12 @@ internal sealed class PipelineArtifacts
                 ["step"] = step,
                 ["bundle_seal_jobs"] = Rows(
                     connection,
-                    "SELECT run_id, state, screenshot_requested, screenshot_state, input_deadline_at_utc, bundle_id, created_at_ms, attempts, last_attempt_at_utc, last_error_code FROM bundle_seal_jobs",
+                    "SELECT run_id, state, screenshot_requested, screenshot_state, input_deadline_at_ms, bundle_id, created_at_ms, attempts, last_attempt_at_ms, last_error_code FROM bundle_seal_jobs",
                     runIds
                 ),
                 ["bundle_outbox"] = Rows(
                     connection,
-                    "SELECT run_id, bundle_id, file_name, content_sha256_hex, content_digest, total_bytes, has_screenshot, sealed_at_utc, status, next_attempt_at_utc, attempts, last_attempt_at_utc, last_error_code, failed_at_utc, uploaded_at_utc, server_outcome FROM bundle_outbox",
+                    "SELECT run_id, bundle_id, file_name, content_sha256_hex, content_digest, total_bytes, has_screenshot, sealed_at_ms, status, next_attempt_at_ms, attempts, last_attempt_at_ms, last_error_code, failed_at_ms, uploaded_at_ms, server_outcome FROM bundle_outbox",
                     runIds,
                     bundleOutbox: true
                 ),
@@ -151,7 +151,7 @@ internal sealed class PipelineArtifacts
         connection.Open();
         _screenshots[runId] = Rows(
             connection,
-            "SELECT screenshot_id, run_id, hero_name, is_primary, image_relative_path, captured_at_local, captured_at_utc, day, player_rank, player_rating, player_position, victories_at_capture, capture_source FROM run_screenshots",
+            "SELECT screenshot_id, run_id, hero_name, is_primary, image_relative_path, captured_at_ms, captured_utc_offset_minutes, day, player_rank, player_rating, player_position, victories_at_capture, capture_source FROM run_screenshots",
             [runId],
             normalizeTimes: false
         );
@@ -242,7 +242,7 @@ internal sealed class PipelineArtifacts
     private static void VerifyServerChecksumsUseOurMeasure()
     {
         var bytes = Convert.FromBase64String(Resource("run-only.bundle.b64").Trim());
-        var opened = BundleV5Codec.Open(bytes);
+        var opened = BundleV6Codec.Open(bytes);
         using var checksums = JsonDocument.Parse(Resource("checksums.json"));
         var entry = checksums.RootElement.GetProperty("run-only.bundle.b64");
         Check.That(
@@ -304,7 +304,7 @@ internal sealed class PipelineArtifacts
             "file_name" => Ulid + ".bundle",
             "created_at_ms" => 0,
             "content_sha256_hex" or "content_digest" or "total_bytes" => Normalized,
-            _ when normalizeTimes && column.EndsWith("_at_utc", StringComparison.Ordinal) => Utc,
+            _ when normalizeTimes && column.EndsWith("_at_ms", StringComparison.Ordinal) => Utc,
             _ => value switch
             {
                 long number => number,

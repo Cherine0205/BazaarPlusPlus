@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { commitBundle } from "../src/modules/bundle-commit";
 import { bundleData } from "./fixtures/bundle";
 
-test("the completed migrations leave only the V5 domain tables", async () => {
+test("the completed migrations leave only the domain tables", async () => {
   const result = await env.DB.prepare(
     `
       SELECT name
@@ -18,21 +18,17 @@ test("the completed migrations leave only the V5 domain tables", async () => {
   ).all<{ name: string }>();
 
   expect(result.results.map(({ name }) => name)).toEqual([
-    "bazaardb_deliveries",
-    "bazaardb_delivery_attempts",
     "bundle_uploaders",
     "bundles",
     "ghost_battle_summaries",
   ]);
 });
 
-describe("V5 relational constraints", () => {
+describe("relational constraints", () => {
   const validBundleSql = `INSERT INTO bundles (
     bundle_id, run_id, uploader_account_id, object_key, bundle_sha256,
-    bundle_version, manifest_bytes, object_bytes, client_created_at_ms,
-    stored_at_ms, available_at_ms, run_format_version, run_bytes, run_sha256,
-    has_screenshot, screenshot_content_type, screenshot_bytes, screenshot_sha256
-  ) VALUES (?1, ?2, 'schema-uploader', ?3, ?4, 5, 10, 100, 1, 1, 1, 5, 10, ?4, ?5, ?6, ?7, ?8)`;
+    object_bytes, client_created_at_ms, stored_at_ms, available_at_ms, has_screenshot
+  ) VALUES (?1, ?2, 'schema-uploader', ?3, ?4, 100, 1, 1, 1, ?5)`;
 
   test("foreign keys are enabled and reject a Ghost row without its Bundle", async () => {
     const foreignKeys = await env.DB.prepare(`PRAGMA foreign_keys`).first<{
@@ -43,52 +39,22 @@ describe("V5 relational constraints", () => {
       env.DB.prepare(
         `INSERT INTO ghost_battle_summaries (
           uploader_account_id, battle_id, bundle_id, opponent_account_id,
-          recorded_at_ms, day, hour, result, player_display_name
-        ) VALUES ('a', 'b', 'missing', 'c', 1, 1, 1, 'win', 'Uploader')`,
+          recorded_at_ms, day, hour, result, winner_combatant_id, player_display_name
+        ) VALUES ('a', 'b', 'missing', 'c', 1, 1, 1, 'win', 'Player', 'Uploader')`,
       ).run(),
     ).rejects.toThrow();
   });
 
-  test("Screenshot metadata cannot exploit SQLite NULL CHECK semantics", async () => {
+  test.each([null, 2])("has_screenshot rejects %s", async (hasScreenshot) => {
     await expect(
       env.DB.prepare(validBundleSql)
         .bind(
           "01J00000000000000000000501",
-          "schema-run-screenshot-null",
+          "schema-run-screenshot-flag",
           "bundles/2026-08-02/01J00000000000000000000501.bundle",
           "a".repeat(64),
-          1,
-          null,
-          null,
-          null,
+          hasScreenshot,
         )
-        .run(),
-    ).rejects.toThrow();
-  });
-
-  test("active claim order must be an integer within the claim page", async () => {
-    const bundleId = "01J00000000000000000000503";
-    await env.DB.prepare(validBundleSql)
-      .bind(
-        bundleId,
-        "schema-run-fractional-claim-order",
-        `bundles/2026-08-02/${bundleId}.bundle`,
-        "c".repeat(64),
-        0,
-        null,
-        null,
-        null,
-      )
-      .run();
-
-    await expect(
-      env.DB.prepare(
-        `INSERT INTO bazaardb_deliveries (
-          bundle_id, active_claim_id, active_claim_order, claimable_at_ms,
-          delivery_attempts, created_at_ms, state_updated_at_ms
-        ) VALUES (?1, 'claim-fractional', 0.5, 2, 1, 1, 1)`,
-      )
-        .bind(bundleId)
         .run(),
     ).rejects.toThrow();
   });

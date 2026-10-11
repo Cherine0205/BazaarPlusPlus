@@ -1,6 +1,8 @@
-# BazaarPlusPlus Server V5 API reference
+# BazaarPlusPlus Server V6 API reference
 
-Base URL: `https://mod-api-v5.bazaarplusplus.com`
+Base URL: `https://mod-api-v6.bazaarplusplus.com`
+
+Mod 6.0 and later use this Worker. The V5 Worker at `https://mod-api-v5.bazaarplusplus.com` keeps serving 5.7.0 with the same routes and the frozen [Bundle V5](../contracts/v5/bundle-v5.md) format ([deployment runbook](deployment-runbook.md#8-the-v5-worker)).
 
 The Worker exposes exactly these routes:
 
@@ -10,8 +12,7 @@ The Worker exposes exactly these routes:
 | `POST` | `/bundles` | None; uploader identity is a caller assertion |
 | `GET` | `/bundles` | `BUNDLE_SYNC_TOKEN` |
 | `GET` | `/ghost-battles` | None; per-IP rate limited |
-| `POST` | `/bazaardb/deliveries/claim` | `BAZAARDB_DELIVERY_TOKEN` |
-| `POST` | `/bazaardb/deliveries/settle` | `BAZAARDB_DELIVERY_TOKEN` |
+| `GET` | `/bazaardb/bundles` | `BAZAARDB_DELIVERY_TOKEN` |
 
 There is no Bundle download route. Discovery responses contain a seven-day R2 presigned `GET` URL, and clients download the complete Bundle directly from the R2 S3 endpoint.
 
@@ -55,10 +56,7 @@ The machine-readable owner is [`contracts/mod-api-errors.json`](../contracts/mod
 |---:|---|---|---|
 | 400 | `invalid_content_length` | `false` | Invalid header or actual length mismatch |
 | 400 | `invalid_content_digest` | `false` | Invalid or unsupported digest field |
-| 400 | `invalid_json` | `false` | Missing, oversized, malformed, or non-object JSON body |
-| 400 | `invalid_limit` | `false` | Invalid BazaarDB claim page size |
 | 400 | `invalid_query` | `false` | Missing, repeated, unknown, or invalid query parameter |
-| 400 | `invalid_settle_request` | `false` | Invalid BazaarDB settlement body |
 | 400 | `window_not_settled` | `false` | Bundle window ends after the settle point |
 | 401 | `unauthorized` | `false` | Missing or invalid service token |
 | 403 | `insufficient_scope` | `false` | Service token does not grant access to the route |
@@ -77,7 +75,7 @@ The machine-readable owner is [`contracts/mod-api-errors.json`](../contracts/mod
 | 422 | `segment_digest_mismatch` | `false` | Run or Screenshot digest mismatch |
 | 429 | `rate_limited` | `true` | Ghost request rate exceeded |
 | 500 | `internal_error` | `true` | Unclassified server error or invalid service configuration |
-| 503 | `storage_unavailable` | `true` | Storage, signing, rate limiter, or delivery maintenance unavailable |
+| 503 | `storage_unavailable` | `true` | Storage, signing, or rate limiter unavailable |
 
 ## Service-token authentication
 
@@ -87,18 +85,18 @@ Protected requests use:
 Authorization: Bearer <43-character unpadded base64url token>
 ```
 
-The two configured tokens must be distinct. A missing, malformed, empty, or unknown token returns `401 unauthorized`. A valid token for the other service scope returns `403 insufficient_scope`. If the deployed token configuration itself is invalid (a token missing, malformed, or both tokens equal), every protected route returns `500 internal_error` with `retryable: true` until the operator fixes the secrets. Authentication runs before JSON parsing, D1, R2, or URL signing.
+The two configured tokens must be distinct. A missing, malformed, empty, or unknown token returns `401 unauthorized`. A valid token for the other service scope returns `403 insufficient_scope`. If the deployed token configuration itself is invalid (a token missing, malformed, or both tokens equal), every protected route returns `500 internal_error` with `retryable: true` until the operator fixes the secrets. Authentication runs before query parsing, D1, R2, or URL signing.
 
-## Bundle V5 wire format
+## Bundle V6 wire format
 
-Content type: `application/x-bpp-bundle-v5`.
+Content type: `application/x-bpp-bundle-v6`.
 
 The 16-byte prefix uses unsigned big-endian integers:
 
 | Offset | Bytes | Value |
 |---:|---:|---|
-| 0 | 8 | ASCII `BPPBNDL5` |
-| 8 | 4 | Bundle version `5` |
+| 0 | 8 | ASCII `BPPBNDL6` |
+| 8 | 4 | Bundle version `6` |
 | 12 | 4 | UTF-8 manifest JSON byte length |
 
 The manifest is followed by one Run segment and an optional Screenshot segment. Segment offsets are relative to the first payload byte. The Run starts at offset `0`; a Screenshot starts at the Run length. Gaps, overlap, and trailing bytes are invalid.
@@ -108,12 +106,12 @@ Manifest shape:
 ```json
 {
   "bundle_id": "01J00000000000000000000001",
-  "bundle_version": 5,
+  "bundle_version": 6,
   "created_at_ms": 1785628800000,
   "run": {
     "run_id": "run-id",
     "player_account_id": "account-id",
-    "run_format_version": 5,
+    "run_format_version": 6,
     "projection": {
       "run": {},
       "battles": [
@@ -157,7 +155,7 @@ Manifest shape:
       "offset": 0,
       "length": 123456,
       "sha256": "64-lowercase-hex-characters",
-      "content_type": "application/x-bpp-run-v5"
+      "content_type": "application/x-bpp-run-v6"
     }
   },
   "screenshot": {
@@ -173,7 +171,7 @@ Manifest shape:
 }
 ```
 
-The `screenshot` key is absent for a Run-only Bundle. Every optional combatant scalar is present as either its value or `null`. `bundle_id` is a canonical uppercase ULID, and other identities use 1–128 characters from letters, digits, `.`, `_`, `:`, and `-`, beginning with a letter or digit. Unknown manifest fields are ignored.
+The `screenshot` key is absent for a Run-only Bundle. Every optional combatant scalar is present as either its value or `null`. Each Battle's `winner_combatant_id` and `loser_combatant_id` are required identities, never `null`. `bundle_id` is a canonical uppercase ULID, and other identities use 1–128 characters from letters, digits, `.`, `_`, `:`, and `-`, beginning with a letter or digit. Unknown manifest fields are ignored. Every time is a Unix millisecond integer, in the manifest and in the [Run segment](../../bazaarplusplus-mod/docs/contracts/run-payload-v6.md).
 
 Limits:
 
@@ -186,7 +184,7 @@ Limits:
 | Run projection | 524,288 UTF-8 bytes |
 | Battle projections | 30, with unique IDs inside the Bundle |
 
-The machine-readable contract is in [`../contracts/v5/manifest.schema.json`](../contracts/v5/manifest.schema.json), with prefix details and golden vectors under [`../contracts/v5`](../contracts/v5).
+The machine-readable contract is in [`../contracts/v6/manifest.schema.json`](../contracts/v6/manifest.schema.json), with prefix details and golden vectors under [`../contracts/v6`](../contracts/v6). This Worker rejects V5 Bundles.
 
 ## `GET /health`
 
@@ -208,7 +206,7 @@ Public ingest for one sealed Bundle. `run.player_account_id` is not authenticate
 Required headers:
 
 ```http
-Content-Type: application/x-bpp-bundle-v5
+Content-Type: application/x-bpp-bundle-v6
 Content-Length: 1234567
 Content-Digest: sha-256=:<base64 SHA-256 of complete Bundle>:
 ```
@@ -226,7 +224,7 @@ First logical commit returns `201`:
 }
 ```
 
-An identical stored Bundle returns `200` with `outcome: "duplicate"`. `bazaardb_delivery` is `created` for a newly stored Screenshot-bearing Bundle, `existing` for its duplicate, or `not_applicable` for a Run-only Bundle.
+An identical stored Bundle returns `200` with `outcome: "duplicate"`. `bazaardb_delivery` is `created` for a newly stored Screenshot-bearing Bundle, `existing` for its duplicate, or `not_applicable` for a Run-only Bundle; it says only whether the Bundle appears in [`GET /bazaardb/bundles`](#get-bazaardbbundles), and no delivery state is stored.
 
 Conflicts preserve the first immutable identity:
 
@@ -270,7 +268,7 @@ Response `200`:
     {
       "bundle_id": "01J00000000000000000000001",
       "available_at_ms": 1785629000000,
-      "download_url": "https://bazaarplusplus-bundle-v5.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
+      "download_url": "https://bazaarplusplus-bundle-v6.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
       "download_expires_at_ms": 1786233800000
     }
   ],
@@ -322,14 +320,14 @@ Response `200`:
         "account_id": "account-id",
         "hero_name": "Pygmalien"
       },
-      "download_url": "https://bazaarplusplus-bundle-v5.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
+      "download_url": "https://bazaarplusplus-bundle-v6.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
       "download_expires_at_ms": 1786233800000
     }
   ]
 }
 ```
 
-Rows sort by `recorded_at_ms DESC, battle_id DESC`. The response is reconstructed from fifteen ordinary summary columns. `player` is the uploader/challenger and `opponent` is the queried local player; both remain nested objects. `day`, `hour`, and both account IDs are required by Mod import. `winner_combatant_id` remains available for result filtering, and `player.rank` / `player.rating` preserve Mod 5.1/5.2 display behavior. Nullable fields are emitted as JSON null.
+Rows sort by `recorded_at_ms DESC, battle_id DESC`. The response is reconstructed from fifteen ordinary summary columns. `player` is the uploader/challenger and `opponent` is the queried local player; both remain nested objects. `day`, `hour`, and both account IDs are required by Mod import. `winner_combatant_id` is never `null` and remains available for result filtering, and `player.rank` / `player.rating` preserve Mod 5.1/5.2 display behavior. Nullable fields are emitted as JSON null.
 
 At ingest, a projection is inserted only when its opponent is the uploader or the opponent already exists in `bundle_uploaders`. The uploader is added only as the final write of a successful Bundle D1 batch. Filtered history is never backfilled. Cross-Bundle duplicate `(uploader_account_id, battle_id)` rows keep the first projection.
 
@@ -337,105 +335,49 @@ Route errors: `400 invalid_query`, `429 rate_limited`, and `503 storage_unavaila
 
 The discovery summary omits both sides’ `hero_id`, `level`, `prestige`, and `victories`; `opponent.display_name`, `opponent.rank`, and `opponent.rating`; and `encounter_id`, `combat_kind`, and `loser_combatant_id`. The upload manifest contract and complete R2 Bundle/Run remain unchanged. Download capabilities are signed at query time using the parent Bundle object key. Mod 5.1.0, 5.2.0, and the audited 5.3.0 source accept this summary without a coordinated Mod release.
 
-## `POST /bazaardb/deliveries/claim`
+## `GET /bazaardb/bundles`
 
-Only Screenshot-bearing Bundles create deliveries.
+BazaarDB enumeration of Screenshot-bearing Bundles. It is [`GET /bundles`](#get-bundles) with a Screenshot filter: the same query fields, settle point, 8-day lookback, keyset order, and `next_after` cursor. The server keeps no delivery state; the consumer stores its own cursor and resumes from it.
 
 ```http
+GET /bazaardb/bundles?available_from_ms=1785628800000&available_before_ms=1785632400000&limit=200
 Authorization: Bearer <BAZAARDB_DELIVERY_TOKEN>
-Content-Type: application/json
-
-{"limit":50}
 ```
-
-The JSON body limit is 64 KiB. `limit` defaults to 50 and accepts 1–50.
 
 Response `200`:
 
 ```json
 {
-  "claim_id": "clm_550e8400-e29b-41d4-a716-446655440000",
-  "expires_at_ms": 1785629400000,
+  "window": {
+    "available_from_ms": 1785628800000,
+    "available_before_ms": 1785632400000
+  },
   "items": [
     {
       "bundle_id": "01J00000000000000000000001",
-      "run_id": "run-id",
-      "download_url": "https://bazaarplusplus-bundle-v5.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
+      "available_at_ms": 1785629000000,
+      "download_url": "https://bazaarplusplus-bundle-v6.<ACCOUNT_ID>.r2.cloudflarestorage.com/bundles/...bundle?X-Amz-Expires=604800&...",
       "download_expires_at_ms": 1786233800000,
-      "content_type": "application/x-bpp-bundle-v5",
+      "run_id": "run-id",
+      "content_type": "application/x-bpp-bundle-v6",
       "sha256": "64-lowercase-hex-characters"
     }
-  ]
-}
-```
-
-No work returns `{"claim_id":null,"expires_at_ms":null,"items":[]}`.
-
-Each claim first converges at most 1,000 expired Bundles and 1,000 expired final attempts. If expired pending Bundles remain, it returns `503 storage_unavailable` with `retryable: true` and `Retry-After: 1`. This response commits maintenance progress but grants no leases and counts no attempts. Retry with backoff, respecting `Retry-After`; an empty successful response still means there is no claimable work.
-
-The lease is ten minutes. An attempt is counted atomically when claimed, with a maximum of three. Multiple consumers cannot receive the same Bundle under overlapping valid leases. A response lost after claiming leaves the lease to expire naturally. URL-signing failure is compensated by removing this claim's receipts and restoring only rows still owned by this claim; a failed compensation remains recoverable by lease expiry.
-
-Route errors: `400 invalid_json`, `400 invalid_limit`, `401 unauthorized`, `403 insufficient_scope`, `500 internal_error` (invalid service token configuration), and `503 storage_unavailable`.
-
-## `POST /bazaardb/deliveries/settle`
-
-```http
-Authorization: Bearer <BAZAARDB_DELIVERY_TOKEN>
-Content-Type: application/json
-
-{
-  "claim_id": "clm_550e8400-e29b-41d4-a716-446655440000",
-  "results": [
-    {"bundle_id":"01J00000000000000000000001","outcome":"accepted"},
-    {"bundle_id":"01J00000000000000000000002","outcome":"retryable_failure","reason":"timeout"},
-    {"bundle_id":"01J00000000000000000000003","outcome":"permanent_failure","reason":"invalid_data"}
-  ]
-}
-```
-
-`results` contains 1–50 unique Bundle IDs. Outcomes are `accepted`, `retryable_failure`, or `permanent_failure`. Failure outcomes require a `^[a-z0-9_]{1,64}$` reason. `accepted` forbids `reason`.
-
-Response `200`:
-
-```json
-{
-  "claim_id": "clm_550e8400-e29b-41d4-a716-446655440000",
-  "items": [
-    {
-      "bundle_id": "01J00000000000000000000001",
-      "status": "applied",
-      "state": "done",
-      "next_claim_at_ms": null
-    }
   ],
-  "summary": {
-    "applied": 1,
-    "duplicate": 0,
-    "rejected": 0
+  "next_after": {
+    "available_at_ms": 1785629000000,
+    "bundle_id": "01J00000000000000000000001"
   }
 }
 ```
 
-Per-item `status` is:
-
-- `applied`: this request changed the delivery;
-- `duplicate`: the same attempt already has the same outcome and reason;
-- `stale_claim`: the unsettled attempt no longer owns an unexpired lease;
-- `outcome_conflict`: the attempt is settled differently;
-- `unknown_item`: no receipt exists for the claim and Bundle.
-
-`state` is `pending`, `done`, or `failed`, and is `null` for an unknown item. `next_claim_at_ms` is non-null only for pending work without an active lease. `summary.rejected` counts stale, conflicting, and unknown items.
-
-`accepted` becomes done. `permanent_failure` becomes failed. The first retryable failure waits 60 seconds, the second waits five minutes, and the third becomes failed with `delivery_attempts_exhausted`. Before selecting a claim page, `POST /bazaardb/deliveries/claim` also marks pending Bundles older than the 8-day R2 retention as `bundle_expired` and expired third leases as `delivery_attempts_exhausted`. Attempt receipts are immutable across later attempts, so response-loss retries remain idempotent.
-
-Route errors: `400 invalid_json`, `400 invalid_settle_request`, `401 unauthorized`, `403 insufficient_scope`, `500 internal_error` (invalid service token configuration), and `503 storage_unavailable`.
+`sha256` is the digest of the complete Bundle. Run-only Bundles never appear. Route errors match `GET /bundles`.
 
 ## Presigned downloads
 
 All discovery routes use the same signer contract:
 
 - operation: S3 `GetObject` only;
-- endpoint: `https://bazaarplusplus-bundle-v5.<ACCOUNT_ID>.r2.cloudflarestorage.com`;
+- endpoint: `https://bazaarplusplus-bundle-v6.<ACCOUNT_ID>.r2.cloudflarestorage.com`;
 - region: `auto`;
 - lifetime: 604,800 seconds;
 - key: a validated `bundles/<yyyy-mm-dd>/<bundle_id>.bundle` value read from D1.
@@ -446,8 +388,8 @@ The URL is a bearer capability. The Worker never logs the complete URL and does 
 
 ## Retention and maintenance
 
-R2 object deletion is provided only by the separately provisioned 8-day bucket lifecycle rule. The scheduled handler runs every 15 minutes and deletes D1 Bundles whose `stored_at_ms` is strictly earlier than its scheduled time minus 15 days. Each delete commits at most 100 Bundles, with at most ten batches per invocation; backlog continues on later invocations. A Bundle at the exact 15-day boundary remains until a later run. Deletion cascades to Ghost projections, BazaarDB deliveries, and attempt receipts. `bundle_uploaders` remains deployment-lifetime state and is never pruned by this handler. The handler does not access R2.
+R2 object deletion is provided only by the separately provisioned 8-day bucket lifecycle rule. The scheduled handler runs every 15 minutes and deletes D1 Bundles whose `stored_at_ms` is strictly earlier than its scheduled time minus 15 days. Each delete commits at most 100 Bundles, with at most ten batches per invocation; backlog continues on later invocations. A Bundle at the exact 15-day boundary remains until a later run. Deletion cascades to Ghost projections. `bundle_uploaders` remains deployment-lifetime state and is never pruned by this handler. The handler does not access R2.
 
-Client timestamps and settle activity do not extend D1 retention. Bundle identity deduplication and attempt idempotency end when their metadata is pruned; a later settle returns `unknown_item`. The five-day Ghost and eight-day Bundle collection windows remain unchanged. The 15-day cutoff is eligibility for asynchronous pruning, not a guarantee of deletion at an exact instant.
+Client timestamps do not extend D1 retention. Bundle identity deduplication ends when its metadata is pruned. The five-day Ghost and eight-day Bundle collection windows, including `GET /bazaardb/bundles`, remain unchanged. The 15-day cutoff is eligibility for asynchronous pruning, not a guarantee of deletion at an exact instant.
 
-A matching retry of `POST /bundles` validates and commits an R2-only object left by a prior D1 failure. Pending BazaarDB deliveries older than R2 retention and expired third leases converge when the next claim request runs.
+A matching retry of `POST /bundles` validates and commits an R2-only object left by a prior D1 failure.

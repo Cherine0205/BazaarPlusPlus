@@ -69,14 +69,13 @@ static async Task DiscoveryImportsServerGhostSummaryContract()
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT remote_battle_id, bundle_id, recorded_at_utc, uploader_account_id, local_player_account_id, player_account_id, player_hero, player_rank, player_rating, opponent_account_id, opponent_hero FROM battles WHERE source = 'GHOST';";
+            "SELECT remote_battle_id, bundle_id, recorded_at_ms, uploader_account_id, local_player_account_id, player_account_id, player_hero, player_rank, player_rating, opponent_account_id, opponent_hero FROM battles WHERE source = 'GHOST';";
         using var row = command.ExecuteReader();
         Assert(row.Read(), "Discovery must import the contract battle.");
         Assert(row.GetString(0) == battle.GetProperty("battle_id").GetString(), "battle_id");
         Assert(row.GetString(1) == battle.GetProperty("bundle_id").GetString(), "bundle_id");
         Assert(
-            DateTimeOffset.Parse(row.GetString(2)).ToUnixTimeMilliseconds()
-                == battle.GetProperty("recorded_at_ms").GetInt64(),
+            row.GetInt64(2) == battle.GetProperty("recorded_at_ms").GetInt64(),
             "recorded_at_ms"
         );
         Assert(
@@ -321,28 +320,28 @@ static async Task CorruptBundleBecomesPermanentWithoutRepeatedDownload()
 
 static void RecorderPerspectiveManifestKeepsSides()
 {
-    var battle = new RunBattleV5
+    var battle = new RunBattleV6
     {
-        Facts = new BattleFactsV5
+        Facts = new BattleFactsV6
         {
-            RecordedAtUtc = "2026-08-06T00:00:00+00:00",
+            RecordedAtMs = 1_785_974_400_000,
             CombatKind = "PVPCombat",
             Result = "Win",
             WinnerCombatantId = "Player",
             LoserCombatantId = "Opponent",
         },
-        Participants = new BattleParticipantsV5
+        Participants = new BattleParticipantsV6
         {
-            Player = new BattleParticipantV5
+            Player = new BattleParticipantV6
             {
                 AccountId = "U",
                 DisplayName = "Uploader",
                 Income = 7,
                 Gold = 11,
             },
-            Opponent = new BattleParticipantV5 { AccountId = "L", DisplayName = "Local" },
+            Opponent = new BattleParticipantV6 { AccountId = "L", DisplayName = "Local" },
         },
-        Snapshots = new BattleCardSnapshotsV5
+        Snapshots = new BattleCardSnapshotsV6
         {
             CardSets =
             [
@@ -460,13 +459,13 @@ static void LegacyPayloadNormalizesOnceAndIsIdempotent()
     );
 }
 
-static BattleCardSetV5 SnapshotSet(string label, string templateId) =>
+static BattleCardSetV6 SnapshotSet(string label, string templateId) =>
     new()
     {
         Label = label,
         Status = "Captured",
         Source = "Runtime",
-        Items = [new BattleCardV5 { InstanceId = templateId, TemplateId = templateId }],
+        Items = [new BattleCardV6 { InstanceId = templateId, TemplateId = templateId }],
     };
 
 static PvpBattleCardSetCapture Capture(string templateId) =>

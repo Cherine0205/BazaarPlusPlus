@@ -29,16 +29,16 @@ fn add_screenshot(game_path: &Path, id: &str, capture_source: &str, color: [u8; 
     let first_use = !database_path.exists();
     let connection = rusqlite::Connection::open(database_path).unwrap();
     if first_use {
-        crate::history::test_schema::create_mod_schema(&connection);
+        crate::history::mod_schema::create_mod_schema(&connection);
     }
     connection
         .execute(
             "insert into run_screenshots (
                 screenshot_id, capture_source, is_primary, image_relative_path, hero_name,
-                captured_at_local, captured_at_utc, victories_at_capture, day
+                captured_utc_offset_minutes, captured_at_ms, victories_at_capture, day
             ) values (
-                ?1, ?2, 1, ?3, 'Vanessa', '2026-09-01T00:00:00Z',
-                '2026-09-01T00:00:00Z', 10, 10
+                ?1, ?2, 1, ?3, 'Vanessa', 0,
+                1788220800000, 10, 10
             )",
             [id, capture_source, &file_name],
         )

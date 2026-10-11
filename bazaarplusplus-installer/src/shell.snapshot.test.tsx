@@ -88,6 +88,28 @@ const cases: Case[] = [
   {
     route: '/',
     page: 'install',
+    state: 'legacy-roots',
+    seed: (c) => {
+      vi.spyOn(c, 'getInstallState').mockResolvedValue(fixtures.installed);
+      vi.spyOn(c, 'getLegacyDataState').mockResolvedValue(
+        fixtures.legacyRootsNeedingReinstall
+      );
+    }
+  },
+  {
+    route: '/',
+    page: 'install',
+    state: 'v5-import',
+    seed: (c) => {
+      vi.spyOn(c, 'getInstallState').mockResolvedValue(fixtures.installed);
+      vi.spyOn(c, 'getLegacyDataState').mockResolvedValue(
+        fixtures.v5ImportEligible
+      );
+    }
+  },
+  {
+    route: '/',
+    page: 'install',
     state: 'detection-failed',
     seed: (c) => {
       vi.spyOn(c, 'getInstallState').mockImplementation(
@@ -120,6 +142,19 @@ const cases: Case[] = [
     seed: (c) => {
       vi.spyOn(c, 'listHistoryRuns').mockImplementation(
         reject(fixtures.historyReadFailed)
+      );
+    }
+  },
+  {
+    route: '/history',
+    page: 'history',
+    state: 'unavailable-v5-import',
+    seed: (c) => {
+      vi.spyOn(c, 'listHistoryRuns').mockImplementation(
+        reject(fixtures.historyUnavailable)
+      );
+      vi.spyOn(c, 'getLegacyDataState').mockResolvedValue(
+        fixtures.v5ImportEligible
       );
     }
   },

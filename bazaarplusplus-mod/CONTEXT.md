@@ -93,7 +93,7 @@ The unified settings-dock concept for entries that cycle through an ordered valu
 ## Uploads
 
 **Run Bundle Contract**:
-The shared V5 reader/writer boundary that opens a Bundle, verifies manifest-to-payload Run identity,
+The shared V6 reader/writer boundary that opens a Bundle, verifies manifest-to-payload Run identity,
 and decides whether a Battle has the exact snapshot and replay inputs required for import. Bundle
 composition and Ghost Battle import use the same contract.
 
@@ -123,9 +123,9 @@ it without a migration, and a pending file that fails this way is never resealed
 _Avoid_: JSON failure
 
 **Seal-Eligible Run**:
-A completed, non-PTR Ranked Run with neither a seal job nor any outbox row; the next seal pass
-gives it a waiting job. `BundleQueueStore.SealEligibleRunCondition` is the one SQL rule, and
-installer History cleanup is pinned to it through a shared fixture.
+A completed, non-PTR Ranked Run, not History-Only, with neither a seal job nor any outbox row;
+the next seal pass gives it a waiting job. `BundleQueueStore.SealEligibleRunCondition` is the one SQL rule, and installer
+History cleanup is pinned to it through a shared fixture.
 _Avoid_: sealable run
 
 **Bundle Queue Store**:
@@ -169,7 +169,7 @@ _Avoid_: DayTierSchedule, hardcoded tier table
 ## Remote embedded data
 
 **Remote Embedded Catalog**:
-The shared runtime lifecycle for data shipped as an embedded seed, cached under `<GameRoot>/BazaarPlusPlusV5/`, and refreshed from a remote source (`IRemoteEmbeddedCatalog<T>`). The interface exposes only current-snapshot lookup, warm-up, explicit refresh, and disposal; feature modules keep their own parser, logging, and user-facing refresh policy.
+The shared runtime lifecycle for data shipped as an embedded seed, cached under `<GameRoot>/BazaarPlusPlusV6/`, and refreshed from a remote source (`IRemoteEmbeddedCatalog<T>`). The interface exposes only current-snapshot lookup, warm-up, explicit refresh, and disposal; feature modules keep their own parser, logging, and user-facing refresh policy.
 _Avoid_: feature repository loader
 
 **Supporter Catalog Module**:

@@ -81,12 +81,9 @@ export const SHARED_INPUTS = [
     'bazaarplusplus-analyzer/docs/specs/consumer-data-contract.md',
     ['site', 'mod', 'installer']
   ],
+  ['bazaarplusplus-mod/docs/contracts/', ['server', 'analyzer']],
   [
-    'bazaarplusplus-mod/docs/contracts/run-payload-v5.md',
-    ['server', 'analyzer']
-  ],
-  [
-    'bazaarplusplus-mod/tests/BundleV5Codec.Tests/fixtures/',
+    'bazaarplusplus-mod/tests/BundleV6Codec.Tests/fixtures/',
     ['server', 'analyzer']
   ],
   [
@@ -94,7 +91,7 @@ export const SHARED_INPUTS = [
     ['installer']
   ],
   [
-    'bazaarplusplus-mod/tests/RunLoggingPipeline.Tests/fixtures/',
+    'bazaarplusplus-mod/src/BazaarPlusPlus.Storage/history-database-v6.schema.sql',
     ['installer', 'release']
   ],
   ['bazaarplusplus-mod/src/BazaarPlusPlus.Storage/BundleQueue/', ['installer']],
@@ -125,6 +122,8 @@ export const SHARED_INPUTS = [
     'src-tauri/tauri.macos.conf.json',
     'src-tauri/tauri.windows.conf.json'
   ].map((file) => [`bazaarplusplus-installer/${file}`, ['release']]),
+  // checkProductProjections refuses 6.2.0 while this module exists.
+  ['bazaarplusplus-installer/src-tauri/src/v5_import/', ['release']],
   ['bazaarplusplus-installer/src-tauri/icons/source/', ['macos-icon']],
   [
     'bazaarplusplus-installer/scripts/release/compile-macos-icon.mjs',
@@ -149,6 +148,11 @@ const INFORMATIONAL_REFERENCES = [
   [
     'bazaarplusplus-mod/native/macos/build.sh',
     'bazaarplusplus-installer/scripts/bundle.sh'
+  ],
+  // Read from a pinned commit with `git show`, never from the working tree.
+  [
+    'bazaarplusplus-installer/src-tauri/tests/fixtures/v5-import/generate-schemas.py',
+    'bazaarplusplus-mod/tests/RunLoggingPipeline.Tests/fixtures/history-database-v3.schema.sql'
   ]
 ];
 

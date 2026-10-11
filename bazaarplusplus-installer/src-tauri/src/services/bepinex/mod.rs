@@ -4,6 +4,7 @@ mod payload;
 mod trampoline;
 mod zip_archive;
 
+pub(crate) use payload::{ensure_valid_game_path, remove_dir_with_retry};
 pub(crate) use trampoline::{
     install_trampoline, is_current_trampoline, obsolete_macos_artifacts_present,
     remove_obsolete_macos_artifacts,
@@ -29,60 +30,58 @@ pub(crate) fn repair_deployed_game(game_path: &Path, stub: &Path) -> Result<(), 
     }
 }
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use crate::services::action_error::ActionError;
+use crate::services::data_maintenance::DataMaintenanceLock;
+use crate::services::game_process::{
+    ensure_game_stopped_with, GameProcessProbe, GameStoppedOperation, SystemGameProcessProbe,
+};
 use crate::stream::runtime::StreamRuntime;
 
 use super::{debug_error, debug_log};
 
-/// Stable error-code prefixes returned when a BPP-data reset is blocked or
-/// partially fails. Kept stable so the frontend can pattern-match the prefix;
-/// the current UI (`useInstallPage.ts`) maps these to localized messages.
-pub(crate) const RESET_BPP_DATA_ERR_GAME_RUNNING: &str = "bpp_data_reset_blocked_by_game";
-pub(crate) const RESET_BPP_DATA_ERR_PARTIAL_FAILURE: &str = "bpp_data_reset_partial_failure";
-
-/// Same shape as the data-reset codes, for the blunter "wipe the whole BepInEx
-/// folder" action. Kept distinct so the frontend can show BepInEx-specific copy.
-pub(crate) const RESET_BEPINEX_ERR_GAME_RUNNING: &str = "bepinex_reset_blocked_by_game";
-pub(crate) const RESET_BEPINEX_ERR_PARTIAL_FAILURE: &str = "bepinex_reset_partial_failure";
-
 pub async fn reset_bpp_data(
-    stream_runtime: tauri::State<'_, StreamRuntime>,
+    maintenance: &DataMaintenanceLock,
+    stream_runtime: &StreamRuntime,
     game_path: String,
-) -> Result<bool, String> {
-    stream_runtime
-        .exclusive_maintenance(|| async move {
-            tauri::async_runtime::spawn_blocking(move || {
-                reset_bpp_data_blocking(Path::new(&game_path))
-            })
-            .await
-            .map_err(|err| format!("failed to reset BazaarPlusPlus data: {err}"))?
-        })
-        .await
+) -> Result<bool, ActionError> {
+    reset_bpp_data_with(
+        maintenance,
+        stream_runtime,
+        game_path,
+        SystemGameProcessProbe,
+    )
+    .await
 }
 
-fn reset_bpp_data_blocking(game_path: &Path) -> Result<bool, String> {
-    reset_bpp_data_blocking_with(
-        game_path,
-        crate::services::game_process::is_bazaar_running_best_effort,
-    )
+/// Holds the data maintenance lock and stops the OBS overlay, which reads the
+/// database this deletes, for the whole reset.
+pub(crate) async fn reset_bpp_data_with(
+    maintenance: &DataMaintenanceLock,
+    stream_runtime: &StreamRuntime,
+    game_path: String,
+    probe: impl GameProcessProbe + Send + 'static,
+) -> Result<bool, ActionError> {
+    maintenance
+        .run_blocking_with_overlay_stopped(stream_runtime, move || {
+            reset_bpp_data_blocking_with(Path::new(&game_path), &probe)
+        })
+        .await?
 }
 
 fn reset_bpp_data_blocking_with(
     game_path: &Path,
-    is_game_running: impl FnOnce() -> bool,
-) -> Result<bool, String> {
+    probe: &impl GameProcessProbe,
+) -> Result<bool, ActionError> {
     payload::ensure_valid_game_path(game_path)?;
-
-    if is_game_running() {
-        return Err(RESET_BPP_DATA_ERR_GAME_RUNNING.to_string());
-    }
+    ensure_game_stopped_with(probe, game_path, GameStoppedOperation::Reset)?;
 
     let data_dir = crate::services::paths::bpp_data_dir(game_path);
     let had_resettable_data = data_dir.exists();
     let report = payload::cleanup_bpp_data_directory(game_path);
     if !report.is_empty() {
-        return Err(format_partial_failure(&report.failed));
+        return Err(ActionError::PartialFailure(report.failed));
     }
 
     debug_log!(
@@ -92,64 +91,40 @@ fn reset_bpp_data_blocking_with(
     Ok(had_resettable_data)
 }
 
-fn format_partial_failure(paths: &[PathBuf]) -> String {
-    format!(
-        "{RESET_BPP_DATA_ERR_PARTIAL_FAILURE}:{}",
-        join_failure_paths(paths)
-    )
-}
-
-fn format_bepinex_partial_failure(paths: &[PathBuf]) -> String {
-    format!(
-        "{RESET_BEPINEX_ERR_PARTIAL_FAILURE}:{}",
-        join_failure_paths(paths)
-    )
-}
-
-fn join_failure_paths(paths: &[PathBuf]) -> String {
-    // Use a delimiter that won't collide with Windows drive letters or POSIX
-    // separators. The frontend splits on `\u{1f}` to recover the list.
-    paths
-        .iter()
-        .map(|path| path.display().to_string())
-        .collect::<Vec<_>>()
-        .join("\u{1f}")
-}
-
 /// Blunt "wipe the whole BepInEx folder" repair. Deletes only `<game>/BepInEx`
 /// (including any third-party mod under it) and leaves the doorstop/trampoline
 /// bootstrap untouched, so the game stays launchable and the user reinstalls
-/// manually afterward. Unlike [`reset_bpp_data`] this touches no SQLite database,
-/// so it needs no exclusive stream-runtime maintenance.
-pub async fn reset_bepinex_folder(game_path: String) -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        reset_bepinex_folder_blocking(Path::new(&game_path))
-    })
-    .await
-    .map_err(|err| format!("failed to reset BepInEx folder: {err}"))?
+/// manually afterward. It holds the data maintenance lock; unlike
+/// [`reset_bpp_data`] it touches no SQLite database, so the overlay keeps
+/// running.
+pub async fn reset_bepinex_folder(
+    maintenance: &DataMaintenanceLock,
+    game_path: String,
+) -> Result<bool, ActionError> {
+    reset_bepinex_folder_with(maintenance, game_path, SystemGameProcessProbe).await
 }
 
-fn reset_bepinex_folder_blocking(game_path: &Path) -> Result<bool, String> {
-    reset_bepinex_folder_blocking_with(
-        game_path,
-        crate::services::game_process::is_bazaar_running_best_effort,
-    )
+pub(crate) async fn reset_bepinex_folder_with(
+    maintenance: &DataMaintenanceLock,
+    game_path: String,
+    probe: impl GameProcessProbe + Send + 'static,
+) -> Result<bool, ActionError> {
+    maintenance
+        .run_blocking(move || reset_bepinex_folder_blocking_with(Path::new(&game_path), &probe))
+        .await?
 }
 
 fn reset_bepinex_folder_blocking_with(
     game_path: &Path,
-    is_game_running: impl FnOnce() -> bool,
-) -> Result<bool, String> {
+    probe: &impl GameProcessProbe,
+) -> Result<bool, ActionError> {
     payload::ensure_valid_game_path(game_path)?;
-
-    if is_game_running() {
-        return Err(RESET_BEPINEX_ERR_GAME_RUNNING.to_string());
-    }
+    ensure_game_stopped_with(probe, game_path, GameStoppedOperation::BepinexReset)?;
 
     let had_bepinex = game_path.join("BepInEx").exists();
     let report = payload::reset_bepinex_directory(game_path);
     if !report.is_empty() {
-        return Err(format_bepinex_partial_failure(&report.failed));
+        return Err(ActionError::PartialFailure(report.failed));
     }
 
     debug_log!("Reset BepInEx folder at {}", game_path.display());
@@ -271,6 +246,11 @@ pub fn uninstall_bpp(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::problem::SemanticProblemCode;
+
+    fn stopped(_: &Path) -> Result<bool, String> {
+        Ok(false)
+    }
 
     fn make_valid_game_dir() -> tempfile::TempDir {
         let tmp = tempfile::tempdir().unwrap();
@@ -301,7 +281,7 @@ mod tests {
         std::fs::create_dir_all(&data_dir).unwrap();
         std::fs::write(data_dir.join("stale.dll"), b"dll").unwrap();
 
-        let removed_data = reset_bpp_data_blocking_with(tmp.path(), || false).unwrap();
+        let removed_data = reset_bpp_data_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(removed_data);
         assert!(!data_dir.exists());
@@ -313,7 +293,7 @@ mod tests {
         let data_dir = tmp.path().join(crate::config::BAZAAR_DATA_DIRECTORY);
         assert!(!data_dir.exists());
 
-        let removed_data = reset_bpp_data_blocking_with(tmp.path(), || false).unwrap();
+        let removed_data = reset_bpp_data_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(!removed_data);
         assert!(!data_dir.exists());
@@ -325,8 +305,8 @@ mod tests {
         let data_dir = tmp.path().join(crate::config::BAZAAR_DATA_DIRECTORY);
         std::fs::create_dir_all(&data_dir).unwrap();
 
-        let removed_data = reset_bpp_data_blocking_with(tmp.path(), || false).unwrap();
-        let removed_data_again = reset_bpp_data_blocking_with(tmp.path(), || false).unwrap();
+        let removed_data = reset_bpp_data_blocking_with(tmp.path(), &stopped).unwrap();
+        let removed_data_again = reset_bpp_data_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(removed_data);
         assert!(!removed_data_again);
@@ -342,7 +322,7 @@ mod tests {
         // A third-party mod under BepInEx is deliberately wiped too (blunt reset).
         std::fs::write(bepinex.join("plugins/OtherMod.dll"), b"foreign").unwrap();
 
-        let removed = reset_bepinex_folder_blocking_with(tmp.path(), || false).unwrap();
+        let removed = reset_bepinex_folder_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(removed);
         assert!(!bepinex.exists());
@@ -357,7 +337,7 @@ mod tests {
         std::fs::write(tmp.path().join("winhttp.dll"), b"doorstop").unwrap();
         std::fs::write(tmp.path().join("libdoorstop.dylib"), b"doorstop").unwrap();
 
-        let removed = reset_bepinex_folder_blocking_with(tmp.path(), || false).unwrap();
+        let removed = reset_bepinex_folder_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(removed);
         assert!(!tmp.path().join("BepInEx").exists());
@@ -370,35 +350,77 @@ mod tests {
         let tmp = make_valid_game_dir();
         assert!(!tmp.path().join("BepInEx").exists());
 
-        let removed = reset_bepinex_folder_blocking_with(tmp.path(), || false).unwrap();
+        let removed = reset_bepinex_folder_blocking_with(tmp.path(), &stopped).unwrap();
 
         assert!(!removed);
     }
 
     #[test]
-    fn reset_helpers_use_the_injected_game_state() {
-        let tmp = make_valid_game_dir();
+    fn resets_refuse_with_typed_problems_and_delete_nothing_while_the_game_runs() {
+        fn running(_: &Path) -> Result<bool, String> {
+            Ok(true)
+        }
+        fn unknown(_: &Path) -> Result<bool, String> {
+            Err("cannot inspect processes".to_string())
+        }
+        type Probe = fn(&Path) -> Result<bool, String>;
+        let probes: [Probe; 2] = [running, unknown];
+        for refusing in probes {
+            let tmp = make_valid_game_dir();
+            let data_dir = tmp.path().join(crate::config::BAZAAR_DATA_DIRECTORY);
+            let plugins = tmp.path().join("BepInEx/plugins");
+            std::fs::create_dir_all(&data_dir).unwrap();
+            std::fs::write(data_dir.join("history.db"), b"db").unwrap();
+            std::fs::create_dir_all(&plugins).unwrap();
+            std::fs::write(plugins.join("BazaarPlusPlus.dll"), b"bpp").unwrap();
 
-        assert_eq!(
-            reset_bpp_data_blocking_with(tmp.path(), || true),
-            Err(RESET_BPP_DATA_ERR_GAME_RUNNING.to_string())
-        );
-        assert_eq!(
-            reset_bepinex_folder_blocking_with(tmp.path(), || true),
-            Err(RESET_BEPINEX_ERR_GAME_RUNNING.to_string())
-        );
+            let reset = reset_bpp_data_blocking_with(tmp.path(), &refusing).unwrap_err();
+            let bepinex_reset =
+                reset_bepinex_folder_blocking_with(tmp.path(), &refusing).unwrap_err();
+
+            assert_eq!(
+                reset.into_problem("reset_bpp_data").code,
+                SemanticProblemCode::ResetBlockedByGame
+            );
+            assert_eq!(
+                bepinex_reset.into_problem("reset_bepinex").code,
+                SemanticProblemCode::BepinexResetBlockedByGame
+            );
+            assert!(data_dir.join("history.db").is_file());
+            assert!(plugins.join("BazaarPlusPlus.dll").is_file());
+        }
     }
 
-    #[test]
-    fn test_format_partial_failure_uses_unit_separator() {
-        let game_path = Path::new("C:/Games/The Bazaar");
-        let formatted = format_partial_failure(&[
-            crate::services::paths::database_path(game_path),
-            crate::services::paths::bpp_data_dir(game_path).join("Identity/observation.json"),
-        ]);
+    #[tokio::test]
+    async fn locked_resets_refuse_while_the_game_runs() {
+        let tmp = make_valid_game_dir();
+        let data_dir = tmp.path().join(crate::config::BAZAAR_DATA_DIRECTORY);
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::create_dir_all(tmp.path().join("BepInEx")).unwrap();
+        let lock = DataMaintenanceLock::default();
+        let game_path = tmp.path().to_string_lossy().into_owned();
 
-        assert!(formatted.starts_with(RESET_BPP_DATA_ERR_PARTIAL_FAILURE));
-        assert!(formatted.contains('\u{1f}'));
-        assert!(formatted.ends_with("observation.json"));
+        let reset = reset_bpp_data_with(
+            &lock,
+            &StreamRuntime::default(),
+            game_path.clone(),
+            |_: &Path| Ok(true),
+        )
+        .await
+        .unwrap_err();
+        let bepinex_reset = reset_bepinex_folder_with(&lock, game_path, |_: &Path| Ok(true))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            reset.into_problem("reset_bpp_data").code,
+            SemanticProblemCode::ResetBlockedByGame
+        );
+        assert_eq!(
+            bepinex_reset.into_problem("reset_bepinex").code,
+            SemanticProblemCode::BepinexResetBlockedByGame
+        );
+        assert!(data_dir.is_dir());
+        assert!(tmp.path().join("BepInEx").is_dir());
     }
 }

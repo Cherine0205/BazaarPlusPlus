@@ -47,6 +47,53 @@ current snapshots, status, run history, and logs.
 - The heartbeat lock fences stale owners before durable writes. A replacement
   owner may recover from committed state without trusting partial staging data.
 
+## Publication target
+
+The consumer snapshots publish to the R2 bucket `BPP_METRICS_R2_BUCKET` names:
+`bazaarplusplus-metrics-v6`, served read-only at the custom domain
+`bpp-metrics-v6.bazaarplusplus.com`. Keys carry no version prefix; the bucket
+and domain name the version. The V5 bucket (`bpp-metrics.bazaarplusplus.com`,
+keys under `analyzer-v5/`) is never written again and stays frozen for 5.7.0.
+A production mod Payload embeds `builds/latest.json` fetched from this origin at
+build time (`TenWinBuildsRemoteUrl` in the mod's `RemoteEmbeddedData.targets`,
+which also sets its minimum size), so `release::prepare` fails until a first
+publication lands here.
+
+The bucket's CORS rule, set on the bucket rather than kept in this repository,
+lets the site read Hero metrics from the browser. It copies the V5 bucket's
+rule: allowed method `GET` only, no headers, no credentials; allowed origins
+`https://bazaarplusplus.com`, the preview site
+`https://bazaarplusplus-site-preview.cauyxy.workers.dev`, and the local dev
+servers `http://localhost:3000`, `:4173`, `:5173`, `http://127.0.0.1:3000` and
+`http://0.0.0.0:3000`. The site ADR
+`bazaarplusplus-site/docs/adr/0001-direct-metrics-origin.md` depends on it.
+
+## Production runs
+
+Production runs are `.github/workflows/analyzer.yml`: hourly on a GitHub-hosted
+runner, plus manual dispatch with an optional `--no-publish`. A runner starts
+empty, so the Data Root lives in the private R2 bucket
+`bazaarplusplus-analyzer-state-v6` and `.github/scripts/analyzer-state.sh`
+mirrors it around each run:
+
+- The run starts only after a complete pull into an empty Data Root and a
+  `bpp verify --deep` of what it restored; either failing stops the job before
+  any write.
+- After a successful run the mirror deletes what fact retention pruned. After a
+  failed run it only uploads new and changed files, so the hours that run
+  committed survive and nothing is deleted.
+- Lock and staging entries are never mirrored. The workflow's concurrency
+  group, not `DirectoryLock`, keeps the state bucket to one writer, so no other
+  machine runs a publishing analyzer against that bucket.
+
+Snapshots still advance once per Complete Source Day; the hourly schedule only
+keeps each run's intake small and leaves room for skipped schedules within the
+eight-day Bundle retention. `BPP_MAX_RUN_SECONDS` is set below the six-hour job
+limit so a long heal stops itself and its committed hours are mirrored before
+the runner is reclaimed. The workflow's secrets live in the `analyzer` GitHub
+Environment, listed in `release/github-secrets.json`; its R2 token reaches only
+the V6 metrics and state buckets.
+
 ## Modes and evidence
 
 `run --no-publish` performs collection and local snapshot

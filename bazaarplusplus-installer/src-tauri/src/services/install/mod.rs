@@ -14,13 +14,17 @@ use tauri::Manager;
 
 use std::path::Path;
 
+use crate::services::game_path::GamePathAcceptance;
 use crate::services::{
-    bepinex::{
-        reset_bepinex_folder, reset_bpp_data, uninstall_bpp, RESET_BEPINEX_ERR_GAME_RUNNING,
-        RESET_BEPINEX_ERR_PARTIAL_FAILURE, RESET_BPP_DATA_ERR_GAME_RUNNING,
-        RESET_BPP_DATA_ERR_PARTIAL_FAILURE,
-    },
+    action_error::ActionError,
+    bepinex::{reset_bepinex_folder, reset_bpp_data, uninstall_bpp},
+    data_maintenance::DataMaintenanceLock,
     detect::detect_for_install,
+    legacy_data::{
+        delete_legacy_root, installer_settings_directory, legacy_data_state,
+        DeleteLegacyRootResult, LegacyDataState,
+    },
+    selected_game_installation::SelectedGameInstallationState,
     startup::InstallerContextState,
 };
 use crate::{
@@ -53,7 +57,8 @@ pub async fn run_reset_bpp_data(
     stream_runtime: tauri::State<'_, StreamRuntime>,
     game_path: String,
 ) -> Result<ResetBppDataResult, SemanticProblem> {
-    let removed_data = reset_bpp_data(stream_runtime, game_path.clone())
+    let maintenance = app.state::<DataMaintenanceLock>().inner().clone();
+    let removed_data = reset_bpp_data(&maintenance, &stream_runtime, game_path.clone())
         .await
         .map_err(|diagnostic| install_action_problem("reset_bpp_data", diagnostic))?;
     let state = build_install_state(app, install_state, Some(game_path))?;
@@ -68,11 +73,48 @@ pub async fn run_reset_bepinex(
     install_state: tauri::State<'_, InstallerContextState>,
     game_path: String,
 ) -> Result<ResetBepinexResult, SemanticProblem> {
-    let removed = reset_bepinex_folder(game_path.clone())
+    let maintenance = app.state::<DataMaintenanceLock>().inner().clone();
+    let removed = reset_bepinex_folder(&maintenance, game_path.clone())
         .await
         .map_err(|diagnostic| install_action_problem("reset_bepinex", diagnostic))?;
     let state = build_install_state(app, install_state, Some(game_path))?;
     Ok(ResetBepinexResult { state, removed })
+}
+
+/// Legacy Roots of the selected game directory. History needs a database to
+/// resolve its directory; this accepts any directory, so a user with only V5
+/// data still sees it. Sizes are measured on the blocking pool.
+pub async fn run_get_legacy_data_state(
+    app: tauri::AppHandle,
+    game_path: Option<String>,
+) -> Result<LegacyDataState, SemanticProblem> {
+    let resolved = app
+        .state::<SelectedGameInstallationState>()
+        .resolve(&app, game_path, GamePathAcceptance::Any)
+        .map(|resolution| resolution.game_path);
+    let Some(game_path) = resolved else {
+        return Ok(LegacyDataState::without_game());
+    };
+    let settings_dir = installer_settings_directory();
+    tauri::async_runtime::spawn_blocking(move || legacy_data_state(&game_path, &settings_dir))
+        .await
+        .map_err(|err| {
+            install_action_problem(
+                "get_legacy_data_state",
+                format!("failed to measure legacy data: {err}"),
+            )
+        })
+}
+
+pub async fn run_delete_legacy_root(
+    app: tauri::AppHandle,
+    game_path: String,
+    name: String,
+) -> Result<DeleteLegacyRootResult, SemanticProblem> {
+    let maintenance = app.state::<DataMaintenanceLock>().inner().clone();
+    delete_legacy_root(&maintenance, game_path, name)
+        .await
+        .map_err(|diagnostic| install_action_problem("delete_legacy_root", diagnostic))
 }
 
 pub async fn run_uninstall(
@@ -194,35 +236,11 @@ fn install_detection_problem(diagnostic: String) -> SemanticProblem {
         .with_diagnostic(diagnostic)
 }
 
-pub(crate) fn install_action_problem(operation: &str, diagnostic: String) -> SemanticProblem {
-    if diagnostic == RESET_BPP_DATA_ERR_GAME_RUNNING || diagnostic == RESET_BEPINEX_ERR_GAME_RUNNING
-    {
-        return SemanticProblem::new(SemanticProblemCode::InstallGameRunning)
-            .with_param("operation", operation);
-    }
-
-    for prefix in [
-        RESET_BPP_DATA_ERR_PARTIAL_FAILURE,
-        RESET_BEPINEX_ERR_PARTIAL_FAILURE,
-    ] {
-        if let Some(paths) = diagnostic
-            .strip_prefix(prefix)
-            .and_then(|remainder| remainder.strip_prefix(':'))
-        {
-            let count = paths
-                .split('\u{1f}')
-                .filter(|path| !path.trim().is_empty())
-                .count();
-            return SemanticProblem::new(SemanticProblemCode::InstallPartialFailure)
-                .with_param("operation", operation)
-                .with_param("count", count.to_string())
-                .with_param("paths", paths);
-        }
-    }
-
-    SemanticProblem::new(SemanticProblemCode::InstallActionFailed)
-        .with_param("operation", operation)
-        .with_diagnostic(diagnostic)
+pub(crate) fn install_action_problem(
+    operation: &str,
+    error: impl Into<ActionError>,
+) -> SemanticProblem {
+    error.into().into_problem(operation)
 }
 
 fn has_resettable_bpp_data(game_path: Option<&str>) -> bool {
@@ -271,12 +289,7 @@ fn open_url(url: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        has_bepinex_directory, has_resettable_bpp_data, install_action_problem, install_warnings,
-        InstallWarningCode,
-    };
-    use crate::problem::SemanticProblemCode;
-    use crate::services::bepinex::{
-        RESET_BEPINEX_ERR_GAME_RUNNING, RESET_BPP_DATA_ERR_PARTIAL_FAILURE,
+        has_bepinex_directory, has_resettable_bpp_data, install_warnings, InstallWarningCode,
     };
 
     #[test]
@@ -366,33 +379,5 @@ mod tests {
         );
 
         assert!(warnings.is_empty());
-    }
-
-    #[test]
-    fn install_failures_classify_known_reset_conditions_and_generic_actions() {
-        let blocked =
-            install_action_problem("reset_bepinex", RESET_BEPINEX_ERR_GAME_RUNNING.to_string());
-        assert_eq!(blocked.code, SemanticProblemCode::InstallGameRunning);
-        assert_eq!(
-            blocked.params.get("operation").map(String::as_str),
-            Some("reset_bepinex")
-        );
-        assert_eq!(blocked.diagnostic, None);
-
-        let partial = install_action_problem(
-            "reset_bpp_data",
-            format!("{RESET_BPP_DATA_ERR_PARTIAL_FAILURE}:/tmp/a\u{1f}/tmp/b"),
-        );
-        assert_eq!(partial.code, SemanticProblemCode::InstallPartialFailure);
-        assert_eq!(partial.params.get("count").map(String::as_str), Some("2"));
-        assert_eq!(
-            partial.params.get("paths").map(String::as_str),
-            Some("/tmp/a\u{1f}/tmp/b")
-        );
-        assert_eq!(partial.diagnostic, None);
-
-        let generic = install_action_problem("install", "permission denied".to_string());
-        assert_eq!(generic.code, SemanticProblemCode::InstallActionFailed);
-        assert_eq!(generic.diagnostic.as_deref(), Some("permission denied"));
     }
 }

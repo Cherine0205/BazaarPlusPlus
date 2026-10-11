@@ -10,6 +10,7 @@ use crate::history::{
     load_battle_video_path, load_run_id_for_battle, load_run_screenshot_path, HistoryReadError,
 };
 use crate::problem::{SemanticProblem, SemanticProblemCode};
+use crate::services::data_maintenance::DataMaintenanceLock;
 use crate::services::game_path::GamePathAcceptance;
 use crate::services::paths;
 use crate::services::selected_game_installation::SelectedGameInstallationState;
@@ -19,8 +20,6 @@ use tauri::Manager;
 pub use crate::history::cleanup::StorageCleanupPreset;
 pub(crate) use crate::history::{HistoryRunDetail, HistoryRunList};
 
-const HISTORY_UNAVAILABLE: &str =
-    "No selected game installation with a history database is available.";
 const REVEAL_SCREENSHOT: &str = "reveal_screenshot";
 const REVEAL_VIDEO: &str = "reveal_video";
 
@@ -47,6 +46,7 @@ pub enum StorageCleanupExecution {
 
 struct HistoryStorage {
     game_path: PathBuf,
+    data_root: PathBuf,
     combat_replay_videos_dir: PathBuf,
     database_path: PathBuf,
 }
@@ -63,34 +63,28 @@ impl History {
             .map(|resolution| resolution.game_path)
     }
 
-    fn from_resolved_game_path_with(
-        game_path: Option<PathBuf>,
-        is_game_running: fn() -> bool,
-    ) -> Result<Self, String> {
-        game_path
-            .map(history_paths_for_game_path)
-            .map(|paths| Self {
-                paths,
-                is_game_running,
-            })
-            .ok_or_else(|| HISTORY_UNAVAILABLE.to_string())
+    /// History of the selected installation that has a history database.
+    fn selected(app: &tauri::AppHandle) -> Result<Self, SemanticProblem> {
+        Self::at(Self::resolved_game_path(app))
     }
 
-    fn from_resolved_game_path_for_page(
-        game_path: Option<PathBuf>,
-    ) -> Result<Self, SemanticProblem> {
-        Self::from_resolved_game_path_for_page_with(
+    fn at(game_path: Option<PathBuf>) -> Result<Self, SemanticProblem> {
+        Self::at_with(
             game_path,
             crate::services::game_process::is_bazaar_running_best_effort,
         )
     }
 
-    pub(crate) fn from_resolved_game_path_for_page_with(
+    pub(crate) fn at_with(
         game_path: Option<PathBuf>,
         is_game_running: fn() -> bool,
     ) -> Result<Self, SemanticProblem> {
-        Self::from_resolved_game_path_with(game_path, is_game_running)
-            .map_err(|_| SemanticProblem::new(SemanticProblemCode::HistoryUnavailable))
+        let game_path = game_path
+            .ok_or_else(|| SemanticProblem::new(SemanticProblemCode::HistoryUnavailable))?;
+        Ok(Self {
+            paths: history_paths_for_game_path(game_path),
+            is_game_running,
+        })
     }
 
     pub(crate) fn list_runs_for_page(
@@ -128,7 +122,7 @@ impl History {
     fn run_screenshot_path(&self, run_id: &str) -> Result<PathBuf, SemanticProblem> {
         as_action_problem(REVEAL_SCREENSHOT, || {
             self.require_database_exists()?;
-            load_run_screenshot_path(&self.paths.database_path, &self.paths.game_path, run_id)?
+            load_run_screenshot_path(&self.paths.database_path, &self.paths.data_root, run_id)?
                 .ok_or_else(|| format!("No screenshot is available for run {run_id}."))
         })
     }
@@ -191,7 +185,7 @@ impl History {
                 StorageCleanupScope::Screenshots => {
                     let plan = cleanup::plan_screenshot_cleanup(
                         &self.paths.database_path,
-                        &self.paths.game_path,
+                        &self.paths.data_root,
                         cutoff.as_ref(),
                         today,
                     )?;
@@ -202,7 +196,7 @@ impl History {
                 StorageCleanupScope::RunData => {
                     let plan = cleanup::plan_run_data_cleanup(
                         &self.paths.database_path,
-                        &self.paths.game_path,
+                        &self.paths.data_root,
                         cutoff.as_ref(),
                     )?;
                     Ok(StorageCleanupPreview::RunData {
@@ -225,14 +219,14 @@ impl History {
             match scope {
                 StorageCleanupScope::Screenshots => cleanup::execute_screenshot_cleanup(
                     &self.paths.database_path,
-                    &self.paths.game_path,
+                    &self.paths.data_root,
                     cutoff.as_ref(),
                     today,
                 )
                 .map(|result| StorageCleanupExecution::Screenshots { result }),
                 StorageCleanupScope::RunData => cleanup::execute_run_data_cleanup(
                     &self.paths.database_path,
-                    &self.paths.game_path,
+                    &self.paths.data_root,
                     cutoff.as_ref(),
                 )
                 .map(|result| StorageCleanupExecution::RunData { result }),
@@ -259,7 +253,7 @@ pub fn list_runs(
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<HistoryRunList, SemanticProblem> {
-    History::from_resolved_game_path_for_page(History::resolved_game_path(app))?.list_runs_for_page(
+    History::selected(app)?.list_runs_for_page(
         limit.unwrap_or(50),
         offset.unwrap_or(0),
         &app.state::<HistoryThumbnails>(),
@@ -270,13 +264,11 @@ pub fn get_run_detail(
     app: &tauri::AppHandle,
     run_id: &str,
 ) -> Result<Option<HistoryRunDetail>, SemanticProblem> {
-    History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .run_detail_for_page(run_id)
+    History::selected(app)?.run_detail_for_page(run_id)
 }
 
 pub fn reveal_run_screenshot(app: &tauri::AppHandle, run_id: &str) -> Result<(), SemanticProblem> {
-    let path = History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .run_screenshot_path(run_id)?;
+    let path = History::selected(app)?.run_screenshot_path(run_id)?;
     as_action_problem(REVEAL_SCREENSHOT, || reveal_in_file_browser(&path))
 }
 
@@ -285,8 +277,7 @@ pub fn reveal_battle_video(
     battle_id: &str,
     video_id: Option<&str>,
 ) -> Result<(), SemanticProblem> {
-    let path = History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .battle_video_path(battle_id, video_id)?;
+    let path = History::selected(app)?.battle_video_path(battle_id, video_id)?;
     as_action_problem(REVEAL_VIDEO, || reveal_in_file_browser(&path))
 }
 
@@ -295,8 +286,7 @@ pub fn delete_battle_video(
     battle_id: &str,
     video_id: &str,
 ) -> Result<HistoryRunDetail, SemanticProblem> {
-    History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .delete_battle_video(battle_id, video_id)
+    History::selected(app)?.delete_battle_video(battle_id, video_id)
 }
 
 pub fn preview_storage_cleanup(
@@ -304,21 +294,46 @@ pub fn preview_storage_cleanup(
     scope: StorageCleanupScope,
     preset: StorageCleanupPreset,
 ) -> Result<StorageCleanupPreview, SemanticProblem> {
-    History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .preview_cleanup(scope, preset)
+    History::selected(app)?.preview_cleanup(scope, preset)
 }
 
-pub fn execute_storage_cleanup(
+pub async fn execute_storage_cleanup(
     app: &tauri::AppHandle,
     scope: StorageCleanupScope,
     preset: StorageCleanupPreset,
 ) -> Result<StorageCleanupExecution, SemanticProblem> {
-    History::from_resolved_game_path_for_page(History::resolved_game_path(app))?
-        .execute_cleanup(scope, preset)
+    let maintenance = app.state::<DataMaintenanceLock>().inner().clone();
+    let app = app.clone();
+    execute_storage_cleanup_with(
+        &maintenance,
+        move || History::resolved_game_path(&app),
+        scope,
+        preset,
+    )
+    .await
+}
+
+/// Cleanup holds the data maintenance lock and resolves the installation only
+/// once it holds it, so it never acts on a data root a Reset is deleting.
+pub(crate) async fn execute_storage_cleanup_with(
+    maintenance: &DataMaintenanceLock,
+    resolve_game_path: impl FnOnce() -> Option<PathBuf> + Send + 'static,
+    scope: StorageCleanupScope,
+    preset: StorageCleanupPreset,
+) -> Result<StorageCleanupExecution, SemanticProblem> {
+    maintenance
+        .run_blocking(move || History::at(resolve_game_path())?.execute_cleanup(scope, preset))
+        .await
+        .map_err(|diagnostic| {
+            SemanticProblem::new(SemanticProblemCode::HistoryActionFailed)
+                .with_param("operation", "execute_storage_cleanup")
+                .with_diagnostic(diagnostic)
+        })?
 }
 
 fn history_paths_for_game_path(game_path: PathBuf) -> HistoryStorage {
     HistoryStorage {
+        data_root: paths::bpp_data_dir(&game_path),
         combat_replay_videos_dir: paths::combat_replay_videos_dir(&game_path),
         database_path: paths::database_path(&game_path),
         game_path,
@@ -428,9 +443,8 @@ mod tests {
         history_paths_for_game_path, history_read_problem_with, history_thumbnails,
         require_video_file_exists, History, HistoryReadError, HistoryThumbnails,
         StorageCleanupExecution, StorageCleanupPreset, StorageCleanupPreview, StorageCleanupScope,
-        HISTORY_UNAVAILABLE,
     };
-    use crate::history::test_schema::create_mod_schema;
+    use crate::history::mod_schema::create_mod_schema;
     use crate::problem::SemanticProblemCode;
     use crate::services::paths;
     use std::path::Path;
@@ -449,28 +463,15 @@ mod tests {
     }
 
     #[test]
-    fn missing_selected_history_returns_a_domain_error() {
-        let error = History::from_resolved_game_path_with(None, || false)
-            .err()
-            .unwrap();
-
-        assert_eq!(error, HISTORY_UNAVAILABLE);
-    }
-
-    #[test]
     fn history_page_list_uses_semantic_unavailable_and_read_failed_problems() {
-        let unavailable = History::from_resolved_game_path_for_page(None)
-            .err()
-            .unwrap();
+        let unavailable = History::at(None).err().unwrap();
         assert_eq!(unavailable.code, SemanticProblemCode::HistoryUnavailable);
         assert!(unavailable.params.is_empty());
         assert_eq!(unavailable.diagnostic, None);
 
         let temp = tempfile::tempdir().unwrap();
         let game_path = temp.path().join("The Bazaar");
-        let history =
-            History::from_resolved_game_path_for_page_with(Some(game_path.clone()), || false)
-                .unwrap();
+        let history = History::at_with(Some(game_path.clone()), || false).unwrap();
         std::fs::create_dir_all(history.paths.database_path.parent().unwrap()).unwrap();
         std::fs::write(&history.paths.database_path, b"not sqlite").unwrap();
 
@@ -505,7 +506,7 @@ mod tests {
     fn history_pages_map_unsupported_schema_to_a_specific_problem() {
         let temp = tempfile::tempdir().unwrap();
         let game_path = temp.path().join("The Bazaar");
-        let history = History::from_resolved_game_path_for_page(Some(game_path)).unwrap();
+        let history = History::at(Some(game_path)).unwrap();
         std::fs::create_dir_all(history.paths.database_path.parent().unwrap()).unwrap();
         rusqlite::Connection::open(&history.paths.database_path).unwrap();
 
@@ -532,7 +533,7 @@ mod tests {
     fn cleanup_keeps_unsupported_schema_on_the_existing_action_problem_surface() {
         let temp = tempfile::tempdir().unwrap();
         let game_path = temp.path().join("The Bazaar");
-        let history = History::from_resolved_game_path_for_page(Some(game_path)).unwrap();
+        let history = History::at(Some(game_path)).unwrap();
         std::fs::create_dir_all(history.paths.database_path.parent().unwrap()).unwrap();
         rusqlite::Connection::open(&history.paths.database_path).unwrap();
 
@@ -553,16 +554,12 @@ mod tests {
 
     #[test]
     fn run_detail_page_distinguishes_not_found_read_and_action_problems() {
-        let unavailable = History::from_resolved_game_path_for_page(None)
-            .err()
-            .unwrap();
+        let unavailable = History::at(None).err().unwrap();
         assert_eq!(unavailable.code, SemanticProblemCode::HistoryUnavailable);
 
         let temp = tempfile::tempdir().unwrap();
         let game_path = temp.path().join("The Bazaar");
-        let history =
-            History::from_resolved_game_path_for_page_with(Some(game_path.clone()), || false)
-                .unwrap();
+        let history = History::at_with(Some(game_path.clone()), || false).unwrap();
         assert_eq!(history.run_detail_for_page("missing").unwrap(), None);
 
         std::fs::create_dir_all(history.paths.database_path.parent().unwrap()).unwrap();
@@ -606,7 +603,7 @@ mod tests {
     fn storage_cleanup_page_classifies_preview_and_execute_failures() {
         let temp = tempfile::tempdir().unwrap();
         let game_path = temp.path().join("The Bazaar");
-        let history = History::from_resolved_game_path_for_page(Some(game_path.clone())).unwrap();
+        let history = History::at(Some(game_path.clone())).unwrap();
         std::fs::create_dir_all(history.paths.database_path.parent().unwrap()).unwrap();
         std::fs::write(&history.paths.database_path, b"not sqlite").unwrap();
 
@@ -667,41 +664,40 @@ mod tests {
         conn.execute_batch(
             "
             insert into runs (
-                run_id, started_at_utc, last_seen_at_utc, status, completed,
-                hero, game_mode, ended_at_utc, victories, losses
+                run_id, started_at_ms, last_seen_at_ms, status,
+                hero, game_mode, ended_at_ms, victories, losses
             ) values (
-                'run-1', '2026-01-01T09:00:00Z', '2026-01-01T10:00:00Z',
-                'completed', 1, 'Vanessa', 'Normal', '2026-01-01T10:00:00Z', 10, 2
+                'run-1', 1767258000000, 1767261600000,
+                'completed', 'Vanessa', 'Normal', 1767261600000, 10, 2
             );
             insert into battles (
-                battle_id, source, run_id, recorded_at_utc, combat_kind, player_name,
-                opponent_hero, opponent_name, result, has_local_payload, local_payload_state
+                battle_id, source, run_id, recorded_at_ms, combat_kind, player_name,
+                opponent_hero, opponent_name, result, local_payload_state
             ) values (
-                'battle-1', 'LOCAL', 'run-1', '2026-01-01T09:30:00Z', 'PVP', 'Player',
-                'Dooley', 'Opponent', 'win', 0, 'missing'
+                'battle-1', 'LOCAL', 'run-1', 1767259800000, 'PVP', 'Player',
+                'Dooley', 'Opponent', 'win', 'missing'
             );
             insert into run_screenshots (
                 screenshot_id, run_id, capture_source, is_primary,
-                image_relative_path, captured_at_utc, captured_at_local
+                image_relative_path, captured_at_ms, captured_utc_offset_minutes
             ) values (
                 'shot-1', 'run-1', 'end_of_run_auto', 1,
-                '2026-01-01/run.png', '2026-01-01T10:00:00Z',
-                '2026-01-01T18:00:00+08:00'
+                '2026-01-01/run.png', 1767261600000,
+                480
             );
             insert into combat_replay_videos (
                 video_id, battle_id, source, video_relative_path, width, height, fps, codec,
-                started_at_utc, file_size_bytes, status
+                started_at_ms, file_size_bytes, status
             ) values (
                 'video-1', 'battle-1', 'GAME_CAPTURE', '2026-01-01/battle.mp4', 1920, 1080, 60,
-                'h264', '2026-01-01T09:30:00Z', 5, 'COMPLETED'
+                'h264', 1767259800000, 5, 'COMPLETED'
             );
             ",
         )
         .unwrap();
         drop(conn);
 
-        let history =
-            History::from_resolved_game_path_with(Some(game_path.clone()), || false).unwrap();
+        let history = History::at_with(Some(game_path.clone()), || false).unwrap();
         let thumbnails = HistoryThumbnails::default();
         thumbnails.register(Path::new("/another/installation"));
         let list = history.list_runs_for_page(50, 0, &thumbnails).unwrap();

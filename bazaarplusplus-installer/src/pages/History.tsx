@@ -16,6 +16,8 @@ import { StatusBanner } from '../components/ui/StatusBanner';
 import {
   formatDateTime,
   formatGameMode,
+  formatHero,
+  formatRank,
   formatRunResultLabel
 } from '../features/history/format';
 import { HistoryOverview } from '../features/history/HistoryOverview';
@@ -24,6 +26,8 @@ import {
   type HistoryPageProblem
 } from '../features/history/historyProblems';
 import { useHistoryPage } from '../features/history/useHistoryPage';
+import { useHistoryUnavailableGuidance } from '../features/history/useHistoryUnavailableGuidance';
+import { LEGACY_DATA_SECTION_ID } from '../features/install/LegacyDataPanel';
 import type {
   EndGameProcessOutcome,
   HistoryThumbnails
@@ -215,7 +219,9 @@ function RunRow({
       />
       <span className="bpp-history-run-info">
         <span className="bpp-history-run-title">
-          <span className="bpp-history-run-hero">{run.hero}</span>
+          <span className="bpp-history-run-hero">
+            {formatHero(run.hero, t)}
+          </span>
           <ChevronRight
             size={16}
             className="bpp-history-run-chevron"
@@ -240,13 +246,15 @@ function RunRow({
           </span>
           <span
             className="bpp-history-run-metric"
-            title={`${t('runStatRank')} ${run.final_player_rank ?? '—'} · ${t('runStatRating')} ${run.final_player_rating ?? '—'}`}
+            title={`${t('runStatRank')} ${run.final_player_rank ? formatRank(run.final_player_rank, t) : '—'} · ${t('runStatRating')} ${run.final_player_rating ?? '—'}`}
           >
             <strong className="bpp-history-run-metric-value">
               {run.final_player_rating ?? '—'}
             </strong>
             <span className="bpp-history-run-metric-label">
-              {run.final_player_rank ?? t('runStatRating')}
+              {run.final_player_rank
+                ? formatRank(run.final_player_rank, t)
+                : t('runStatRating')}
             </span>
             <span className="bpp-history-run-days">
               {t('runMetricDays')} {run.final_day ?? '—'}
@@ -322,6 +330,11 @@ function HistoryProblemBanner({
 }) {
   const { t } = useI18n();
   const { showToast } = useToast();
+  // Only V5 data and no current database: point at the Install page's import
+  // or reinstall card instead of a bare Install link.
+  const guidance = useHistoryUnavailableGuidance(
+    problem.code === 'history_unavailable'
+  );
 
   const endGameProcess = async () => {
     const outcome = await onEndGameProcess();
@@ -333,14 +346,25 @@ function HistoryProblemBanner({
 
   return (
     <ProblemBanner
-      message={presentHistoryProblem(problem, t)}
+      message={
+        guidance === 'import'
+          ? t('historyUnavailableImport')
+          : guidance === 'reinstall'
+            ? t('historyUnavailableReinstall')
+            : presentHistoryProblem(problem, t)
+      }
       problem={problem}
       onRetry={onRetry}
       actions={
         <>
           {problem.code === 'history_unavailable' && (
-            <Link to="/" className={buttonClassName({ size: 'sm' })}>
-              {t('historyOpenInstall')}
+            <Link
+              to={guidance ? `/#${LEGACY_DATA_SECTION_ID}` : '/'}
+              className={buttonClassName({ size: 'sm' })}
+            >
+              {guidance === 'import'
+                ? t('historyOpenImport')
+                : t('historyOpenInstall')}
             </Link>
           )}
           {problem.code === 'history_read_blocked_by_game' && (

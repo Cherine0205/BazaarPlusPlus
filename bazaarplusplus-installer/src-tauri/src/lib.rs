@@ -12,6 +12,7 @@ mod problem;
 mod services;
 mod stream;
 mod tray;
+mod v5_import;
 
 // The unit-test harness links the same Tauri dialog code as the application,
 // but tauri-build only attaches its Common Controls v6 resource to binaries.
@@ -59,6 +60,7 @@ pub fn run() {
             crate::services::selected_game_installation::SelectedGameInstallationState::default(),
         )
         .manage(crate::stream::runtime::StreamRuntime::default())
+        .manage(crate::services::data_maintenance::DataMaintenanceLock::default())
         .manage(crate::stream::history_thumbnails::HistoryThumbnails::default())
         .manage(InstallerContextState::default())
         .manage(TrayMenuState::default())

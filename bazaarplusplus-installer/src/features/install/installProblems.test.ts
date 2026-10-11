@@ -31,20 +31,50 @@ const problems = [
   createUiProblem('install_action_failed', {
     params: { operation: 'launch' }
   }),
-  createUiProblem('install_game_running', {
-    params: { operation: 'reset_bpp_data' }
-  }),
-  createUiProblem('install_game_running', {
-    params: { operation: 'reset_bepinex' }
-  }),
+  createUiProblem('install_blocked_by_game'),
+  createUiProblem('reset_blocked_by_game'),
+  createUiProblem('bepinex_reset_blocked_by_game'),
+  createUiProblem('import_blocked_by_game'),
+  createUiProblem('legacy_delete_blocked_by_game'),
   createUiProblem('install_partial_failure', {
     params: { operation: 'reset_bpp_data', count: '2' }
   }),
   createUiProblem('install_partial_failure', {
     params: { operation: 'reset_bepinex', count: '2' }
   }),
+  createUiProblem('install_action_failed', {
+    params: { operation: 'get_legacy_data_state' }
+  }),
+  createUiProblem('install_action_failed', {
+    params: { operation: 'delete_legacy_root' }
+  }),
+  createUiProblem('install_partial_failure', {
+    params: { operation: 'delete_legacy_root', count: '2' }
+  }),
+  ...[
+    'already_imported',
+    'not_eligible',
+    'mod_contract_invalid',
+    'v5_schema_unsupported',
+    'insufficient_space',
+    'file_placement_failed',
+    'target_write_failed',
+    'marker_not_written'
+  ].map((reason) =>
+    createUiProblem('import_failed', {
+      params: { operation: 'import_v5_history', reason }
+    })
+  ),
   createUiProblem('install_unexpected')
 ] as const;
+
+const presentImportFailure = (reason: string) =>
+  presentInstallProblem(
+    createUiProblem('import_failed', {
+      params: { operation: 'import_v5_history', reason }
+    }),
+    (key, params) => formatMessage('en', key, params)
+  );
 
 describe('Install semantic presentation', () => {
   it.each(warnings)(
@@ -78,6 +108,30 @@ describe('Install semantic presentation', () => {
       expect(en).not.toBe(zh);
     }
   );
+
+  it('names the legacy folder, not local data, when its deletion partly fails', () => {
+    expect(
+      presentInstallProblem(
+        createUiProblem('install_partial_failure', {
+          params: { operation: 'delete_legacy_root', count: '2' }
+        }),
+        (key, params) => formatMessage('en', key, params)
+      )
+    ).toBe(formatMessage('en', 'legacyDeletePartialFailure', { count: '2' }));
+  });
+
+  it('tells an import that committed without its marker apart from one rolled back', () => {
+    expect(presentImportFailure('marker_not_written')).toBe(
+      formatMessage('en', 'importFailedMarker')
+    );
+    expect(presentImportFailure('file_conflict')).toBe(
+      formatMessage('en', 'importFailedFiles')
+    );
+    // A reason this build does not know still says the import was undone.
+    expect(presentImportFailure('some_future_reason')).toBe(
+      formatMessage('en', 'importFailedTarget')
+    );
+  });
 
   it('recovers partial-failure paths from semantic parameters', () => {
     expect(

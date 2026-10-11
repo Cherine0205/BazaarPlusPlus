@@ -1,12 +1,16 @@
 # BazaarPlusPlus Analyzer
 
-The analyzer converts verified Bundle V5 deliveries into local hourly facts and
-two independent current snapshots:
+The analyzer converts verified Bundle V6 deliveries (and V5 ones, while the V5
+Worker serves them) into local hourly facts and two independent current snapshots:
 
 ```text
-analyzer-v5/heroes/latest.json
-analyzer-v5/builds/latest.json
+heroes/latest.json
+builds/latest.json
 ```
+
+Both publish to the V6 metrics bucket, served at
+`https://bpp-metrics-v6.bazaarplusplus.com`; see
+[Publication target](docs/architecture.md#publication-target).
 
 ## Operate
 

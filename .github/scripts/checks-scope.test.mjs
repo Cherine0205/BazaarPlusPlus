@@ -55,6 +55,10 @@ test('root documents, each project and global inputs select their complete gates
     ['bazaarplusplus-installer/src/lib/bindings.ts'],
     ['installer-frontend']
   );
+  expectScopes(
+    ['bazaarplusplus-installer/src-tauri/src/v5_import/mod.rs'],
+    ['installer', 'release']
+  );
   expectScopes(['bazaarplusplus-installer/rust-toolchain.toml'], ['installer']);
   expectScopes(
     ['bazaarplusplus-installer/src-tauri/.cargo/config.toml'],
@@ -102,11 +106,15 @@ test('shared inputs select owners and every contract consumer', () => {
       ['analyzer', 'mod', 'site', 'installer']
     ],
     [
-      'bazaarplusplus-mod/docs/contracts/run-payload-v5.md',
+      'bazaarplusplus-mod/docs/contracts/run-payload-v6.md',
       ['mod', 'server', 'analyzer']
     ],
     [
-      'bazaarplusplus-mod/tests/BundleV5Codec.Tests/fixtures/run-payload-v5.fixture.b64',
+      'bazaarplusplus-mod/docs/contracts/fixtures/run-payload-v5.fixture.b64',
+      ['mod', 'server', 'analyzer']
+    ],
+    [
+      'bazaarplusplus-mod/tests/BundleV6Codec.Tests/fixtures/run-payload-v6.fixture.b64',
       ['mod', 'server', 'analyzer']
     ],
     [
@@ -126,7 +134,7 @@ test('shared inputs select owners and every contract consumer', () => {
       ['mod', 'installer', 'release']
     ],
     [
-      'bazaarplusplus-mod/tests/RunLoggingPipeline.Tests/fixtures/history-database-v3.schema.sql',
+      'bazaarplusplus-mod/src/BazaarPlusPlus.Storage/history-database-v6.schema.sql',
       ['mod', 'installer', 'release']
     ],
     [

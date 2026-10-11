@@ -9,9 +9,18 @@ import {
 export type InstallProblemCode =
   | 'install_detection_failed'
   | 'install_action_failed'
-  | 'install_game_running'
   | 'install_partial_failure'
+  | 'import_failed'
+  | GameRunningProblemCode
   | 'install_unexpected';
+
+/** One code per operation that refuses while The Bazaar runs. */
+type GameRunningProblemCode =
+  | 'install_blocked_by_game'
+  | 'reset_blocked_by_game'
+  | 'bepinex_reset_blocked_by_game'
+  | 'import_blocked_by_game'
+  | 'legacy_delete_blocked_by_game';
 
 export type InstallProblem = UiProblem<InstallProblemCode>;
 
@@ -25,8 +34,13 @@ export function installProblemFromError(error: unknown): InstallProblem {
   switch (problem.code) {
     case 'install_detection_failed':
     case 'install_action_failed':
-    case 'install_game_running':
     case 'install_partial_failure':
+    case 'import_failed':
+    case 'install_blocked_by_game':
+    case 'reset_blocked_by_game':
+    case 'bepinex_reset_blocked_by_game':
+    case 'import_blocked_by_game':
+    case 'legacy_delete_blocked_by_game':
     case 'install_unexpected':
       return problem as InstallProblem;
     default:
@@ -108,14 +122,27 @@ function installProblemMessageKey(problem: InstallProblem): MessageKey {
   switch (problem.code) {
     case 'install_detection_failed':
       return 'installProblemDetectionFailed';
-    case 'install_game_running':
-      return problem.params.operation === 'reset_bepinex'
-        ? 'resetBepinexBlockedByGame'
-        : 'resetDataBlockedByGame';
+    case 'install_blocked_by_game':
+      return 'installBlockedByGame';
+    case 'reset_blocked_by_game':
+      return 'resetDataBlockedByGame';
+    case 'bepinex_reset_blocked_by_game':
+      return 'resetBepinexBlockedByGame';
+    case 'import_blocked_by_game':
+      return 'importBlockedByGame';
+    case 'legacy_delete_blocked_by_game':
+      return 'legacyDeleteBlockedByGame';
+    case 'import_failed':
+      return importFailureMessageKey(problem.params.reason);
     case 'install_partial_failure':
-      return problem.params.operation === 'reset_bepinex'
-        ? 'resetBepinexPartialFailure'
-        : 'resetDataPartialFailure';
+      switch (problem.params.operation) {
+        case 'reset_bepinex':
+          return 'resetBepinexPartialFailure';
+        case 'delete_legacy_root':
+          return 'legacyDeletePartialFailure';
+        default:
+          return 'resetDataPartialFailure';
+      }
     case 'install_action_failed':
       switch (problem.params.operation) {
         case 'choose_directory':
@@ -130,10 +157,43 @@ function installProblemMessageKey(problem: InstallProblem): MessageKey {
           return 'installProblemUninstallFailed';
         case 'launch':
           return 'installProblemLaunchFailed';
+        case 'get_legacy_data_state':
+          return 'installProblemLegacyDataFailed';
+        case 'delete_legacy_root':
+          return 'installProblemLegacyDeleteFailed';
         default:
           return 'installProblemUnexpected';
       }
     case 'install_unexpected':
       return 'installProblemUnexpected';
+  }
+}
+
+/** `reason` is the native `ImportError::code`; an unknown one reads as a
+ * failed write, which the import always rolls back. */
+function importFailureMessageKey(reason: string | undefined): MessageKey {
+  switch (reason) {
+    case 'already_imported':
+      return 'importFailedAlreadyImported';
+    case 'not_eligible':
+    case 'invalid_game_path':
+      return 'importFailedNotEligible';
+    case 'mod_contract_invalid':
+      return 'importFailedModContract';
+    case 'v5_database_missing':
+    case 'v5_database_unreadable':
+    case 'v5_schema_unsupported':
+    case 'v5_schema_missing_column':
+    case 'v5_value_invalid':
+      return 'importFailedV5Database';
+    case 'insufficient_space':
+      return 'importFailedInsufficientSpace';
+    case 'file_conflict':
+    case 'file_placement_failed':
+      return 'importFailedFiles';
+    case 'marker_not_written':
+      return 'importFailedMarker';
+    default:
+      return 'importFailedTarget';
   }
 }

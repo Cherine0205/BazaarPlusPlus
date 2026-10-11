@@ -4,10 +4,12 @@ using BazaarPlusPlus.TestSupport;
 using Microsoft.Data.Sqlite;
 
 // Reads the shared seal-eligibility fixture and seeds one case into a mod database.
+// formatVersion 2 made run.uploadPolicy required, so a reader that predates it fails here.
 // HistoryPanelRepository.Tests Compile-Includes this file to evaluate replay maintenance.
 internal sealed record BundleSealEligibilityCase(
     string Name,
     JsonElement Run,
+    string UploadPolicy,
     IReadOnlyList<string> OutboxStatuses,
     string? SealJobState,
     string? SealJobLastErrorCode,
@@ -25,7 +27,7 @@ internal sealed record BundleSealEligibilityCase(
 
         using var document = JsonDocument.Parse(TestInputs.Scratch(path));
         var root = document.RootElement;
-        if (root.GetProperty("formatVersion").GetInt32() != 1)
+        if (root.GetProperty("formatVersion").GetInt32() != 2)
             throw new InvalidOperationException("Unsupported seal eligibility fixture format.");
 
         var cases = new List<BundleSealEligibilityCase>();
@@ -33,10 +35,12 @@ internal sealed record BundleSealEligibilityCase(
         {
             var job = item.GetProperty("sealJob");
             var expected = item.GetProperty("expected");
+            var run = item.GetProperty("run");
             cases.Add(
                 new BundleSealEligibilityCase(
                     item.GetProperty("name").GetString()!,
-                    item.GetProperty("run").Clone(),
+                    run.Clone(),
+                    run.GetProperty("uploadPolicy").GetString()!,
                     item.GetProperty("outbox")
                         .EnumerateArray()
                         .Select(outbox => outbox.GetProperty("status").GetString()!)
@@ -64,18 +68,18 @@ internal sealed record BundleSealEligibilityCase(
             connection,
             """
             INSERT INTO runs (
-                run_id, started_at_utc, last_seen_at_utc, ended_at_utc, status, completed,
-                hero, game_mode, build_channel
+                run_id, started_at_ms, last_seen_at_ms, ended_at_ms, status,
+                hero, game_mode, build_channel, upload_policy
             ) VALUES (
-                $runId, '2026-01-01T00:00:00Z', '2026-01-01T00:10:00Z', '2026-01-01T00:10:00Z',
-                $status, $completed, 'Vanessa', $gameMode, $buildChannel
+                $runId, 1767225600000, 1767226200000, 1767226200000,
+                $status, 'Vanessa', $gameMode, $buildChannel, $uploadPolicy
             );
             """,
             ("$runId", Name),
             ("$status", Run.GetProperty("status").GetString()),
-            ("$completed", Run.GetProperty("completed").GetInt32()),
             ("$gameMode", Run.GetProperty("gameMode").GetString()),
-            ("$buildChannel", Run.GetProperty("buildChannel").GetString())
+            ("$buildChannel", Run.GetProperty("buildChannel").GetString()),
+            ("$uploadPolicy", UploadPolicy)
         );
         for (var index = 0; index < OutboxStatuses.Count; index++)
         {
@@ -84,10 +88,10 @@ internal sealed record BundleSealEligibilityCase(
                 """
                 INSERT INTO bundle_outbox (
                     bundle_id, run_id, file_name, content_sha256_hex, content_digest,
-                    total_bytes, has_screenshot, sealed_at_utc, status
+                    total_bytes, has_screenshot, sealed_at_ms, status
                 ) VALUES (
                     $bundleId, $runId, $fileName, 'sha', 'digest',
-                    1, 0, '2026-01-01T00:12:00Z', $status
+                    1, 0, 1767226320000, $status
                 );
                 """,
                 ("$bundleId", $"{Name}-bundle-{index}"),
@@ -103,9 +107,9 @@ internal sealed record BundleSealEligibilityCase(
                 """
                 INSERT INTO bundle_seal_jobs (
                     run_id, state, screenshot_requested, screenshot_state,
-                    input_deadline_at_utc, last_error_code
+                    input_deadline_at_ms, last_error_code
                 ) VALUES (
-                    $runId, $state, 0, 'not_requested', '2026-01-01T00:12:00Z', $lastErrorCode
+                    $runId, $state, 0, 'not_requested', 1767226320000, $lastErrorCode
                 );
                 """,
                 ("$runId", Name),
