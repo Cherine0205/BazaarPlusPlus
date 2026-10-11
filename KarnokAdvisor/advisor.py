@@ -33,7 +33,7 @@ def snapshot_age(snapshot):
 def make_document(book, snapshot, *, catalog_ok=True):
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     fresh = -5 <= snapshot_age(snapshot) <= 4
-    reference = book.reference(snapshot if fresh and catalog_ok else {}) if book else None
+    reference = book.reference(snapshot if fresh and catalog_ok else {}, catalog_ok=catalog_ok) if book else None
     return {"kind": DOCUMENT_KIND, "snapshot_id": snapshot.get("snapshot_id", ""), "reference": reference,
             "status": "catalog_error" if not catalog_ok else "stale" if not fresh else "live" if reference and reference["live"] else "browse",
             "generated_at_utc": utc_now()}
@@ -132,7 +132,7 @@ def serve(runtime, parent_pid=0, settings_path=ROOT / "settings.json", *, max_se
                 try:
                     atomic_json(runtime / "guide.json", make_document(book, snapshot, catalog_ok=catalog_ok))
                     atomic_json(runtime / "guide-heartbeat.json", {"kind": DOCUMENT_KIND, "pid": os.getpid(), "parent_pid": parent_pid,
-                                                                  "at": utc_now(), "version": "0.3.1"})
+                                                                  "at": utc_now(), "version": "0.4.0"})
                     last_write = now
                 except OSError as error:
                     logger.warning("Local guide publication deferred: %s", type(error).__name__)

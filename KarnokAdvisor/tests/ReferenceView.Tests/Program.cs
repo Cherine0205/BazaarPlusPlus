@@ -97,4 +97,12 @@ Check(ReferenceViewState.TagText(new JObject { ["tags"] = new JArray("武器", "
 Check(ReferenceViewState.TagText(new JObject { ["tags"] = new JArray() }) == "无标签", "A known untyped item has an explicit empty-type label");
 Check(ReferenceViewState.TagText(new JObject()) == "标签未读取", "Missing type metadata is not presented as an untyped item");
 Check(ReferenceViewState.TagText(new JObject { ["tags"] = new JArray("FutureType") }) == "FutureType", "Untranslated item types remain visible");
+var positionedStage = new JObject { ["base_items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }) };
+var positionBlock = new JObject { ["kind"] = "item", ["template_id"] = "spear", ["start"] = 1, ["span"] = 2 };
+var positionedCard = ReferenceViewState.PositionCard(positionedStage, positionBlock);
+Check((string?)positionedCard?["template_id"] == "spear", "Position block resolves its component by identity");
+positionedStage["base_items"]![0]!["owned"] = "仓库";
+Check((string?)ReferenceViewState.PositionCard(positionedStage, positionBlock)?["owned"] == "仓库", "Position block does not cache previous ownership");
+Check(ReferenceViewState.PositionCard(positionedStage, new JObject { ["kind"] = "gap" }) == null, "An intentional empty slot never resolves as a card");
+Check(ReferenceViewState.PositionCard(positionedStage, new JObject { ["kind"] = "item", ["template_id"] = "missing" }) == null, "Removed position identity is not shown as another component");
 Console.WriteLine($"{count} reference view checks passed.");

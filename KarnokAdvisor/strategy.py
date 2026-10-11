@@ -49,8 +49,20 @@ def validate_components(data):
                 raise ValueError("Stage components and cores must be nonempty and unique")
             if not set(cores) <= set(base):
                 raise ValueError("Phase cores must belong to the base components")
+            positioning = stage["positioning"]
+            gaps = positioning["gaps_after"]
+            if any(name not in base[:-1] or isinstance(span, bool) or not isinstance(span, int) or not 1 <= span < 10
+                   for name, span in gaps.items()):
+                raise ValueError("A positioning gap needs a valid preceding base item and positive span")
+            for link in positioning["links"]:
+                if (link["source"] == link["target"] or not {link["source"], link["target"]} <= set(base)
+                        or link["kind"] not in {"immediate_left", "adjacent", "separated"}):
+                    raise ValueError("Position links need distinct base endpoints and a known relation")
             for option in options:
                 replaces = option.get("replaces", [])
+                fills = option["fills_gap_after"]
+                if not option["position_note"] or len(set(fills)) != len(fills) or not set(fills) <= set(gaps) - set(replaces):
+                    raise ValueError("An option needs a positioning note and valid remaining gap anchors")
                 if not option["use"] or not option["note"] or len(set(replaces)) != len(replaces) or not set(replaces) <= set(base):
                     raise ValueError("An option needs its use, condition and valid base replacement targets")
 
@@ -70,6 +82,10 @@ class StrategyBook:
                                                separators=(",", ":")).encode("utf-8")).hexdigest()
         self.verified = self.digest == self.data["verified_catalog_digest"] and all(self.templates.values())
         self.sources = {source["id"]: source for source in self.data["sources"]}
+        if self.verified:
+            for route in self.data["routes"]:
+                for stage in route["stages"]:
+                    self.positioning(stage, [self.item(name) for name in stage["base_items"]])
 
     def find(self, cards, names):
         ids = {self.templates[name]["Id"] for name in names if self.templates.get(name)}
@@ -89,7 +105,40 @@ class StrategyBook:
                 "owned": "未核对" if board is None or stash is None else "场上" if on_board else "仓库" if in_stash else "未持有",
                 "owned_tier": TIER_ZH.get(observed.get("tier"), observed.get("tier", ""))}
 
-    def stage(self, stage, route, board, stash):
+    def positioning(self, stage, base, *, catalog_ok=True):
+        if not catalog_ok or not self.verified or any(not item["span"] for item in base):
+            return {"available": False, "slots": None, "blocks": [], "notes": ["站位尚未复核，请先核对本机卡牌模板。"]}
+        config = stage["positioning"]
+        starts, spans, blocks, cursor = {}, {}, [], 0
+        for name, item in zip(stage["base_items"], base):
+            starts[name], spans[name] = cursor, item["span"]
+            blocks.append({"kind": "item", "start": cursor, "span": item["span"], "template_id": item["template_id"]})
+            cursor += item["span"]
+            gap = config["gaps_after"].get(name, 0)
+            if gap:
+                blocks.append({"kind": "gap", "start": cursor, "span": gap})
+                cursor += gap
+        if cursor > 10:
+            raise ValueError("Curated positioning exceeds the ten-slot board")
+        for link in config["links"]:
+            source, target = link["source"], link["target"]
+            left, right = starts[source] + spans[source], starts[target] + spans[target]
+            if link["kind"] == "immediate_left":
+                valid = left == starts[target]
+            elif link["kind"] == "adjacent":
+                valid = left == starts[target] or right == starts[source]
+            else:
+                valid = left < starts[target] or right < starts[source]
+            if not valid:
+                raise ValueError("Curated positioning violates " + link["kind"] + ": " + source + " / " + target)
+        occupied = cursor
+        if cursor < 10:
+            blocks.append({"kind": "spare", "start": cursor, "span": 10 - cursor})
+        notes = [link["note"] for link in config["links"] if link.get("note")]
+        if config["note"]: notes.append(config["note"])
+        return {"available": True, "slots": occupied, "blocks": blocks, "notes": notes}
+
+    def stage(self, stage, route, board, stash, *, catalog_ok=True):
         def enrich(name):
             return {**self.item(name, board, stash),
                     "role": " / ".join(role["name"] for role in route["roles"] if name in role["items"]) or "辅助"}
@@ -98,28 +147,33 @@ class StrategyBook:
                  if name in stage["core_items"] else ""} for name in stage["base_items"]]
         slots = sum(item["span"] for item in base) if all(item["span"] for item in base) else None
         by_name = dict(zip(stage["base_items"], base))
+        positioning = self.positioning(stage, base, catalog_ok=catalog_ok)
         options = []
         for option in stage["optional_items"]:
             item = enrich(option["name"])
             replaced = [by_name[name] for name in option.get("replaces", [])]
             total = slots + item["span"] - sum(card["span"] for card in replaced) if slots is not None and item["span"] else None
+            remaining_gap_slots = sum(span for name, span in stage["positioning"]["gaps_after"].items()
+                                      if name not in option.get("replaces", []) and name not in option["fills_gap_after"])
+            position_slots = total + remaining_gap_slots if total is not None and positioning["available"] else None
             options.append({**item, "group": "optional", "core": False,
                             "core_label": "核心替代" if any(card["core"] for card in replaced) else "",
                             "use": option["use"], "note": option["note"],
                             "replaces": [{"name": card["name"], "template_id": card["template_id"]} for card in replaced],
-                            "result_slots": total})
+                            "result_slots": total, "result_position_slots": position_slots,
+                            "position_note": option["position_note"] if positioning["available"] else "站位尚未复核，请先核对本机卡面。"})
         return {"key": stage["key"], "label": dict(STAGES)[stage["key"]], "plan": stage["plan"],
-                "base_items": base, "optional_items": options, "base_slots": slots}
+                "base_items": base, "optional_items": options, "base_slots": slots, "positioning": positioning}
 
-    def reference(self, state):
-        ready = state_ready(state)
+    def reference(self, state, *, catalog_ok=True):
+        ready = catalog_ok and state_ready(state)
         board, stash = (state["board"], state["stash"]) if ready else (None, None)
         stage_key = stage_for(state.get("day")) if ready else None
         routes = []
         for route in self.data["routes"]:
             roles = [{"name": role["name"], "items": [self.item(name, board, stash) for name in role["items"]]}
                      for role in route["roles"]]
-            stages = [self.stage(stage, route, board, stash) for stage in route["stages"]]
+            stages = [self.stage(stage, route, board, stash, catalog_ok=catalog_ok) for stage in route["stages"]]
             core_count = len(self.find(board, route["anchors"]))
             routes.append({"id": route["id"], "name": route["name"],
                            "cover": self.item(route["anchors"][0]), "core_count": core_count,
@@ -128,8 +182,8 @@ class StrategyBook:
                            "skills": route["skills"], "sources": [self.sources[source] for source in route["sources"]]})
         # Route identity anchors are separate from phase cores such as a shared transition Spear.
         matched = max(routes, key=lambda route: (route["core_count"], route["role_count"])) if routes else None
-        return {"catalog_digest": self.digest, "verified": self.verified, "live": ready, "stage": stage_key,
+        return {"catalog_digest": self.digest, "verified": self.verified and catalog_ok, "live": ready, "stage": stage_key,
                 "matched_route_id": matched["id"] if matched and matched["core_count"] else None,
                 "unlocked_slots": len(state["unlocked_slots"]) if ready else None,
-                "version_note": "" if self.verified else "卡牌模板已变化，请核对当前游戏卡面。",
+                "version_note": "卡牌资料暂不可读，站位与持有暂停核对。" if not catalog_ok else "" if self.verified else "卡牌模板已变化，请核对当前游戏卡面。",
                 "routes": routes}

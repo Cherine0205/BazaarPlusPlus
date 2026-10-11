@@ -94,6 +94,99 @@ class ReferenceTests(unittest.TestCase):
                     self.assertTrue(item["role"])
                     self.assertEqual(item["owned"], "未核对")
 
+    def test_all_positioning_blocks_preserve_sizes_order_and_ten_slot_geometry(self):
+        for result in self.book.reference({})["routes"]:
+            for stage in result["stages"]:
+                position = stage["positioning"]
+                self.assertTrue(position["available"])
+                self.assertLessEqual(position["slots"], 10)
+                cursor = 0
+                for block in position["blocks"]:
+                    self.assertEqual(block["start"], cursor)
+                    self.assertGreater(block["span"], 0)
+                    cursor += block["span"]
+                self.assertEqual(cursor, 10)
+                blocks = [block for block in position["blocks"] if block["kind"] == "item"]
+                self.assertEqual([block["template_id"] for block in blocks], [item["template_id"] for item in stage["base_items"]])
+                self.assertEqual([block["span"] for block in blocks], [item["span"] for item in stage["base_items"]])
+                self.assertTrue(position["notes"])
+                self.assertTrue(all(option["position_note"] for option in stage["optional_items"]))
+
+    def test_curated_positioning_rejects_broken_direction_gaps_and_relations(self):
+        for change in (lambda stage: stage["base_items"].reverse(),
+                       lambda stage: stage["positioning"]["gaps_after"].update({"Spear": 0}),
+                       lambda stage: stage["positioning"]["gaps_after"].update({"Unknown": 1}),
+                       lambda stage: stage["positioning"]["links"][0].update(kind="nearby"),
+                       lambda stage: stage["positioning"]["links"][0].update(target="Not in base")):
+            data = copy.deepcopy(self.book.data)
+            change(data["routes"][0]["stages"][0])
+            with self.assertRaises(ValueError): StrategyBook(self.book.catalog, data)
+        data = copy.deepcopy(self.book.data)
+        stage = data["routes"][0]["stages"][0]
+        stage["positioning"]["gaps_after"] = {"Flying Squirrel": 8}
+        with self.assertRaises(ValueError): StrategyBook(self.book.catalog, data)
+
+    def test_optional_position_space_keeps_fills_or_removes_the_explicit_gap(self):
+        early = route(self.book.reference({}), "poison")["stages"][0]
+        self.assertEqual(early["positioning"]["slots"], early["base_slots"] + 1)
+        water = next(item for item in early["optional_items"] if item["template_id"] == "Waterskin")
+        drop = next(item for item in early["optional_items"] if item["template_id"] == "Drowsdrop")
+        self.assertEqual(water["result_position_slots"], water["result_slots"] + 1)
+        self.assertEqual(drop["result_position_slots"], drop["result_slots"])
+        data = copy.deepcopy(self.book.data)
+        definition = next(r for r in data["routes"] if r["id"] == "poison")["stages"][0]
+        definition["optional_items"].append({"name": "Torch", "use": "synthetic replacement", "note": "test only",
+            "replaces": ["Worry Wart"], "position_note": "The slow source was removed", "fills_gap_after": []})
+        modified = route(StrategyBook(self.book.catalog, data).reference({}), "poison")["stages"][0]
+        replacement = next(item for item in modified["optional_items"] if item["template_id"] == "Torch")
+        self.assertEqual(replacement["result_position_slots"], replacement["result_slots"])
+        definition["optional_items"][-1]["fills_gap_after"] = ["Worry Wart"]
+        with self.assertRaises(ValueError): StrategyBook(self.book.catalog, data)
+        safe_fillers = {"Lichen", "Drowsdrop", "Security Blanket", "Hunter's Blind", "Ghillie Suit"}
+        for route_definition in self.book.data["routes"]:
+            for stage_definition in route_definition["stages"]:
+                for option in stage_definition["optional_items"]:
+                    if option["fills_gap_after"]: self.assertIn(option["name"], safe_fillers)
+
+    def test_unreviewed_or_unavailable_templates_never_publish_usable_positioning(self):
+        self.book.templates["Spear"] = None
+        position = route(self.book.reference({}), "friends")["stages"][0]["positioning"]
+        self.assertFalse(position["available"])
+        self.assertEqual(position["blocks"], [])
+        catalog = copy.deepcopy(self.book.catalog)
+        catalog.cards["Tent"]["Size"] = "Large"
+        updated = StrategyBook(catalog, self.book.data)
+        for result in updated.reference({})["routes"]:
+            for stage in result["stages"]:
+                self.assertFalse(stage["positioning"]["available"])
+                self.assertEqual(stage["positioning"]["blocks"], [])
+                self.assertTrue(all(item["result_position_slots"] is None for item in stage["optional_items"]))
+
+    def test_catalog_failure_disables_cached_positioning_until_catalog_recovers(self):
+        snapshot = state([card("Shotgun")])
+        failed = make_document(self.book, snapshot, catalog_ok=False)
+        reference = failed["reference"]
+        self.assertEqual(failed["status"], "catalog_error")
+        self.assertFalse(reference["verified"])
+        self.assertFalse(reference["live"])
+        self.assertIn("暂不可读", reference["version_note"])
+        self.assertTrue(self.book.verified)
+        self.assertEqual(len(reference["routes"]), 7)
+        for result in reference["routes"]:
+            for stage in result["stages"]:
+                self.assertFalse(stage["positioning"]["available"])
+                self.assertIsNone(stage["positioning"]["slots"])
+                self.assertEqual(stage["positioning"]["blocks"], [])
+                self.assertTrue(all(item["owned"] == "未核对" and item["art_key"] for item in stage["base_items"]))
+                self.assertTrue(all(item["result_position_slots"] is None for item in stage["optional_items"]))
+        recovered = make_document(self.book, snapshot)["reference"]
+        self.assertTrue(recovered["verified"])
+        self.assertTrue(recovered["live"])
+        self.assertTrue(all(stage["positioning"]["available"] for result in recovered["routes"] for stage in result["stages"]))
+        offline = make_document(self.book, {})["reference"]
+        self.assertFalse(offline["live"])
+        self.assertTrue(all(stage["positioning"]["available"] for result in offline["routes"] for stage in result["stages"]))
+
     def test_item_tags_use_native_type_translation_and_exclude_effect_keywords(self):
         template = self.book.catalog.cards["Spear"]
         template["Tags"] = ["Weapon", "Friend", "Weapon"]
@@ -115,7 +208,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertTrue(any(item["owned"] == "场上" for item in friends["optional_items"]))
         self.assertTrue(all(item["owned"] != "场上" for item in friends["base_items"]))
         self.assertFalse(any(item["core"] for item in friends["optional_items"]))
-        self.assertEqual(friends["base_items"][0]["core_label"], "过渡核心")
+        self.assertEqual(next(item for item in friends["base_items"] if item["template_id"] == "Spear")["core_label"], "过渡核心")
         self.assertIsNone(guide["matched_route_id"])
 
     def test_replacements_account_for_removed_size_and_can_still_exceed_capacity(self):
@@ -381,6 +474,8 @@ class InstalledCatalogTests(unittest.TestCase):
             self.assertTrue(result["sources"])
             for stage in result["stages"]:
                 self.assertLessEqual(stage["base_slots"], 10)
+                self.assertTrue(stage["positioning"]["available"])
+                self.assertLessEqual(stage["positioning"]["slots"], 10)
                 for item in stage["base_items"] + stage["optional_items"]:
                     self.assertEqual(item["art_key"], book.catalog.cards[item["template_id"]]["ArtKey"])
                     self.assertTrue(item["effects"])

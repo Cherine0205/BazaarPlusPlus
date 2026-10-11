@@ -58,6 +58,10 @@ internal sealed class ReferenceViewState
     internal JObject? Stage(JObject route) => (route["stages"] as JArray)?.OfType<JObject>().FirstOrDefault(s => (string?)s["key"] == StageKey);
     internal static JArray BaseCards(JObject stage) => stage["base_items"] as JArray ?? new JArray();
     internal static JArray OptionalCards(JObject stage) => stage["optional_items"] as JArray ?? new JArray();
+    internal static JObject? PositionCard(JObject stage, JToken block) => (string?)block["kind"] == "item"
+        ? BaseCards(stage).OfType<JObject>().FirstOrDefault(card => (string?)card["template_id"] == (string?)block["template_id"])
+        : null;
+
     internal static int? OwnedBaseCount(JObject stage, bool live) => live ? BaseCards(stage).Count(c => (string?)c["owned"] == "场上") : (int?)null;
     internal JObject? Card(JObject stage) => BaseCards(stage).Concat(OptionalCards(stage)).OfType<JObject>()
         .FirstOrDefault(c => (string?)c["template_id"] == CardId && CardId.Length > 0);

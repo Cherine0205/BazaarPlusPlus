@@ -260,6 +260,11 @@ internal sealed class AdvisorPanel : IDisposable
         var baseRows = GridRows(baseItems, tileWidth, columns);
         var optionRows = GridRows(options, tileWidth, columns);
         var planHeight = TextHeight(_muted, Value(stage["plan"]), textWidth) + 16;
+        var positioning = stage["positioning"] as JObject;
+        var positionNotes = positioning == null ? new List<string> { "站位资料待同步" } : Strings(positioning["notes"]);
+        var hasPositioning = (bool?)positioning?["available"] == true;
+        var positionBlockHeight = hasPositioning ? Math.Max(56, baseItems.Max(card => TextHeight(_tileMeta, Value(card["name"]), width * ((int?)card["span"] ?? 1) / 10 - 8) + 25)) : 56;
+        var positionHeight = (hasPositioning ? positionBlockHeight + 34 : 28f) + positionNotes.Sum(note => TextHeight(_tileMeta, note, width - 12) + 7) + 8;
         var sections = new List<(string Key, string Title, bool Expanded, List<(string Text, Color Color, string Url)> Lines)>();
         var strategy = new List<(string Text, Color Color, string Url)> {
             ("转型：" + Value(route["pivot"]), Ivory, ""),
@@ -271,13 +276,14 @@ internal sealed class AdvisorPanel : IDisposable
             .Select(source => (Value(source["title"]), Gold, (string?)source["url"] ?? "")).ToList();
         sections.Add(("sources", "攻略来源", _open.Contains("sources"), sources));
         float Height(string text) => TextHeight(_muted, text, textWidth) + 10;
-        var contentHeight = 60 + baseRows.Sum(h => h + 8) + optionRows.Sum(h => h + 8) + planHeight
+        var contentHeight = 60 + positionHeight + baseRows.Sum(h => h + 8) + optionRows.Sum(h => h + 8) + planHeight
             + sections.Sum(s => 34 + (s.Expanded ? s.Lines.Sum(line => Height(line.Text)) : 0)) + 12;
         BeginScroll(viewport, width, contentHeight);
-        Label(new Rect(0, 0, 140, 23), "基础组件", _body, Gold);
+        var y = DrawPositioning(width, stage, positioning, positionNotes, positionBlockHeight);
+        Label(new Rect(0, y, 140, 23), "基础组件", _body, Gold);
         var ownedCount = ReferenceViewState.OwnedBaseCount(stage, _live);
-        if (ownedCount.HasValue) Label(new Rect(width - 200, 3, 200, 20), "基础在场 " + ownedCount + " / " + baseItems.Count, _small, Green, TextAnchor.UpperRight);
-        var y = DrawGrid(30, baseItems, baseRows, tileWidth, columns, viewport.height);
+        if (ownedCount.HasValue) Label(new Rect(width - 200, y + 3, 200, 20), "基础在场 " + ownedCount + " / " + baseItems.Count, _small, Green, TextAnchor.UpperRight);
+        y = DrawGrid(y + 30, baseItems, baseRows, tileWidth, columns, viewport.height);
         Label(new Rect(12, y, textWidth, planHeight - 8), Value(stage["plan"]), _muted, Ivory);
         y += planHeight;
         Label(new Rect(0, y, 140, 23), "可选组件", _body, Gold);
@@ -299,6 +305,49 @@ internal sealed class AdvisorPanel : IDisposable
             }
         }
         EndScroll(viewport, contentHeight);
+    }
+
+    private float DrawPositioning(float width, JObject stage, JObject? positioning, List<string> notes, float blockHeight)
+    {
+        Label(new Rect(0, 0, width - 150, 23), "参考站位  左 → 右", _body, Gold);
+        var available = (bool?)positioning?["available"] == true;
+        if (available)
+        {
+            var slots = (int?)positioning?["slots"];
+            var unlocked = _live ? (int?)_reference?["unlocked_slots"] : null;
+            Label(new Rect(width - 145, 3, 145, 20), "站位 " + Value(positioning?["slots"]) + " 格（含间隔）", _small,
+                slots > (unlocked ?? 10) ? Amber : Muted, TextAnchor.UpperRight);
+            var unit = width / 10;
+            foreach (var block in positioning?["blocks"] as JArray ?? new JArray())
+            {
+                var start = (int?)block["start"] ?? -1;
+                var span = (int?)block["span"] ?? 0;
+                if (start < 0 || span < 1 || start + span > 10) continue;
+                var rect = new Rect(start * unit + 1, 28, span * unit - 2, blockHeight);
+                var card = ReferenceViewState.PositionCard(stage, block);
+                if (card != null)
+                {
+                    if (GUI.Button(rect, GUIContent.none, (bool?)card["core"] == true ? _coreCard : _card))
+                        _selection.SelectCard((string?)card["template_id"] ?? "");
+                    Label(new Rect(rect.x + 3, rect.y + 5, rect.width - 6, blockHeight - 25), Value(card["name"]), _tileMeta, Ivory, TextAnchor.UpperCenter);
+                    Label(new Rect(rect.x + 3, rect.yMax - 19, rect.width - 6, 15), span + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
+                }
+                else
+                {
+                    var gap = (string?)block["kind"] == "gap";
+                    GUI.Box(rect, GUIContent.none, _card);
+                    Label(new Rect(rect.x + 3, rect.y + 10, rect.width - 6, blockHeight - 20), (gap ? "空" : "余") + span + "格", _tileMeta, gap ? Amber : Muted, TextAnchor.MiddleCenter);
+                }
+            }
+        }
+        var y = available ? blockHeight + 34 : 28f;
+        foreach (var note in notes)
+        {
+            var height = TextHeight(_tileMeta, note, width - 12) + 7;
+            Label(new Rect(6, y, width - 12, height), note, _tileMeta, available ? Muted : Amber);
+            y += height;
+        }
+        return y + 8;
     }
 
     private float[] GridRows(JArray items, float tileWidth, int columns)
@@ -371,6 +420,7 @@ internal sealed class AdvisorPanel : IDisposable
         {
             details.Add(("可选 · " + Value(card["use"]), Cyan, ""));
             details.Add((Value(card["note"]), Ivory, ""));
+            details.Add(("站位：" + Value(card["position_note"]), Cyan, ""));
             var replaces = ReplacementNames(card);
             if (replaces.Length > 0) details.Add(("替换基础组件：" + replaces, Gold, ""));
             var slots = (int?)card["result_slots"];
@@ -379,6 +429,9 @@ internal sealed class AdvisorPanel : IDisposable
             if (available.HasValue) space += " · 当前可用 " + available + " 格";
             if (slots > 10) space += " · 超上限 " + (slots - 10) + " 格，需再移除其他基础组件";
             details.Add((space, slots > (available ?? 10) ? Amber : Muted, ""));
+            var positionSlots = (int?)card["result_position_slots"];
+            if (positionSlots.HasValue && positionSlots != slots)
+                details.Add(("组件＋保留间隔 " + positionSlots + " 格", positionSlots > (available ?? 10) ? Amber : Muted, ""));
         }
         else details.Add(("基础组件" + ((string?)card["core_label"] is string label && label.Length > 0 ? " · " + label : ""), Gold, ""));
         var detailHeights = details.Select(line => TextHeight(_muted, line.Text, textWidth) + 10).ToArray();
