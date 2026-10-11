@@ -8,4 +8,4 @@ foreach ($name in @('KarnokAdvisor.dll', 'KarnokAdvisor.settings.json')) {
     if ([IO.Path]::GetDirectoryName($target) -ne $plugins) { throw 'Unexpected target directory.' }
     if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target }
 }
-Write-Output 'KarnokAdvisor addon removed. Recommendation logs and existing mods were retained.'
+Write-Output 'KarnokAdvisor addon removed. Local data and existing mods were retained.'

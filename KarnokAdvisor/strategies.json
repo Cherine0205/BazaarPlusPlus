@@ -2,7 +2,7 @@
   "reviewed_at": "2026-10-11",
   "reviewed_patch": "19.0",
   "verified_catalog_digest": "6112ed478a2308b507f93657537ab4ef089eb5f77cacd3801019aa03c126101f",
-  "stage_note": "D1–3 / D4–7 / D8+ 是参谋的规划分段，不是卡牌出现日。组合供选牌参考，不代表固定摆位或十胜保证。",
+  "stage_note": "D1–3 / D4–7 / D8+ 是手册的规划分段，不是卡牌出现日。组合供选牌参考，不代表固定摆位或十胜保证。",
   "sources": [
     {"id": "patch19", "title": "官方 19.0 更新", "date": "2026-10-07", "url": "https://steamcommunity.com/games/1617400/announcements/detail/674008262454018713"},
     {"id": "patch19mirror", "title": "19.0 更新记录镜像", "date": "2026-10-07", "url": "https://steamdb.info/patchnotes/25778800/"},
@@ -95,7 +95,7 @@
         {"key": "mid", "items": ["Wild Bear", "Forest Cloak", "Hunting Hawk", "Hunter's Journal", "Flying Squirrel"], "plan": "生命武器到手后，保留可复用的暴击、加速和防御。"},
         {"key": "late", "items": ["Runic Claymore", "Hidden Lake", "Flying Squirrel", "Messenger Sparrow", "Hunter's Journal", "Snowshoes"], "plan": "同时检查暴击、生命与抗控制；隐秘之湖的冷却效果需要邻接和半血条件。"}
       ],
-      "pivot": "以实际持有生命武器为信号，生命奖励才增加小幅路线权重。",
+      "pivot": "以实际持有生命武器为信号，再补充生命、暴击与出手频率；未拿到武器时先保持当前战力。",
       "caution": "失落之刃另走单主动物品路线，不能把其他有冷却的物品照搬进去；阔剑示例不适用于它。",
       "skills": "最大生命、暴击、主力加速或保护；怒火投资按武器的实际需求决定。"
     },

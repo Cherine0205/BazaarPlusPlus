@@ -11,14 +11,14 @@ using UnityEngine;
 
 namespace KarnokAdvisor;
 
-[BepInPlugin("local.karnok.advisor", "Karnok Advisor", "0.1.0")]
+[BepInPlugin("local.karnok.advisor", "Karnok Handbook", "0.2.0")]
 public sealed class Plugin : BaseUnityPlugin
 {
     private readonly GameReader _reader = new GameReader();
     private string _runtime = "";
     private string _snapshotId = "";
     private JObject? _snapshot;
-    private JObject? _recommendation;
+    private JObject? _document;
     private float _nextCapture;
     private float _lastError;
     private bool _visible = true;
@@ -37,8 +37,18 @@ public sealed class Plugin : BaseUnityPlugin
             var settings = JObject.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
             _runtime = Path.GetFullPath((string?)settings["runtime_dir"] ?? throw new InvalidDataException("runtime_dir missing"));
             Directory.CreateDirectory(_runtime);
-            var heartbeat = Path.Combine(_runtime, "worker-heartbeat.json");
-            if (!File.Exists(heartbeat) || DateTime.UtcNow - File.GetLastWriteTimeUtc(heartbeat) > TimeSpan.FromSeconds(5))
+            var heartbeat = Path.Combine(_runtime, "guide-heartbeat.json");
+            var sameWorker = false;
+            if (File.Exists(heartbeat) && DateTime.UtcNow - File.GetLastWriteTimeUtc(heartbeat) < TimeSpan.FromSeconds(5))
+            {
+                try
+                {
+                    var ready = JObject.Parse(File.ReadAllText(heartbeat, Encoding.UTF8));
+                    sameWorker = (string?)ready["kind"] == ReferenceViewState.DocumentKind && (int?)ready["parent_pid"] == Process.GetCurrentProcess().Id;
+                }
+                catch (Exception ex) when (ex is IOException || ex is JsonException) { }
+            }
+            if (!sameWorker)
             {
                 var python = (string?)settings["python_executable"] ?? "python";
                 var script = (string?)settings["advisor_script"] ?? throw new InvalidDataException("advisor_script missing");
@@ -50,7 +60,7 @@ public sealed class Plugin : BaseUnityPlugin
                 };
                 _worker = Process.Start(start);
             }
-            Logger.LogInfo("Karnok Advisor 0.1.0 loaded. Read-only state capture; F9 panel, F10 refresh. Runtime: " + _runtime);
+            Logger.LogInfo("Karnok Handbook 0.2.0 loaded. Local reference and ownership only; F9 panel, F10 sync. Runtime: " + _runtime);
         }
         catch (Exception ex)
         {
@@ -77,27 +87,36 @@ public sealed class Plugin : BaseUnityPlugin
             _snapshot = captured;
             AtomicWrite(Path.Combine(_runtime, "snapshot.json"), captured.ToString(Formatting.None));
             _message = (string?)captured["hero"] == "Karnok" ? "已读取当前卡诺克状态" : "等待卡诺克对局";
-            var responsePath = Path.Combine(_runtime, "recommendation.json");
-            if (File.Exists(responsePath))
-            {
-                // Permit the worker to atomically publish its next reply while this one is read.
-                using var stream = new FileStream(responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var reader = new StreamReader(stream, Encoding.UTF8);
-                var response = JObject.Parse(reader.ReadToEnd());
-                _recommendation = (string?)response["snapshot_id"] == _snapshotId ? response : null;
-            }
-            else _recommendation = null;
         }
         catch (Exception ex)
         {
             _snapshot = null;
-            _recommendation = null;
             _snapshotId = "";
-            _message = "状态读取失败，已停止推荐：" + ex.GetBaseException().Message;
+            _message = "持有状态暂不可读：" + ex.GetBaseException().Message;
             if (Time.unscaledTime - _lastError > 15) { Logger.LogWarning(_message); _lastError = Time.unscaledTime; }
             var failure = new JObject { ["status"] = "read_error", ["snapshot_id"] = "error",
                 ["captured_at_utc"] = DateTimeOffset.UtcNow.ToString("O"), ["message"] = _message };
             AtomicWrite(Path.Combine(_runtime, "snapshot.json"), failure.ToString(Formatting.None));
+        }
+        // A worker or publication failure only pauses ownership; static references remain browsable.
+        try
+        {
+            var responsePath = Path.Combine(_runtime, "guide.json");
+            if (!File.Exists(responsePath)) return;
+            using var stream = new FileStream(responsePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var response = JObject.Parse(reader.ReadToEnd());
+            if ((string?)response["kind"] != ReferenceViewState.DocumentKind) return;
+            if (!(response["reference"] is JObject) && _document?["reference"] is JObject cached)
+            {
+                response["reference"] = cached.DeepClone();
+                response["reference"]!["live"] = false;
+            }
+            _document = response;
+        }
+        catch (Exception ex) when (ex is IOException || ex is JsonException)
+        {
+            if (Time.unscaledTime - _lastError > 15) { Logger.LogWarning("Handbook sync deferred: " + ex.GetType().Name); _lastError = Time.unscaledTime; }
         }
     }
 
@@ -117,8 +136,7 @@ public sealed class Plugin : BaseUnityPlugin
         }
         _panel ??= new AdvisorPanel(transform, text => Logger.LogWarning(text));
         var snapshot = _snapshot;
-        var recommendation = _recommendation;
-        _visible = _panel.Draw(_visible, snapshot, recommendation, _message, () => {
+        _visible = _panel.Draw(_visible, snapshot, _document, _message, () => {
             _refreshNonce++;
             _nextCapture = 0;
         });

@@ -16,11 +16,6 @@ internal sealed class GameReader
                                        BindingFlags.Instance | BindingFlags.Static;
     private Type? _dataType;
     private Type? _appStateType;
-    private static readonly string[] CardAttributes = {
-        "BuyPrice", "SellPrice", "DamageAmount", "ShieldApplyAmount", "HealAmount",
-        "PoisonApplyAmount", "BurnApplyAmount", "RegenApplyAmount", "CooldownMax",
-        "CritChance", "Multicast", "RageApplyAmount", "TempoCost", "Custom_0", "Custom_1"
-    };
 
     internal JObject Capture()
     {
@@ -50,66 +45,23 @@ internal sealed class GameReader
             ["player_attributes"] = Attributes(player),
             ["board"] = Inventory(Get(player, "Hand")),
             ["stash"] = Inventory(Get(player, "Stash")),
-            ["skills"] = Cards(Get(player, "Skills")),
-            ["unlocked_slots"] = Unlocked(Get(player, "Hand")),
-            ["options"] = new JArray()
+            ["unlocked_slots"] = Unlocked(Get(player, "Hand"))
         };
-        var state = Get(_dataType, "CurrentState");
-        snapshot["encounter_id"] = Get(state, "CurrentEncounterId")?.ToString() ?? "";
-        snapshot["reroll_cost"] = Number(Get(state, "RerollCost"));
-        snapshot["rerolls_remaining"] = Number(Get(state, "RerollsRemaining"));
-        var rules = Get(state, "SelectionContextRules");
-        snapshot["selection_rules"] = new JObject {
-            ["is_free"] = Token(Get(rules, "SelectionIsFree")),
-            ["can_exit"] = Token(Get(rules, "CanExit")),
-            ["can_select_multiple"] = Token(Get(rules, "CanSelectMultiple"))
-        };
-
-        var selections = stateType == "ChoiceState" || stateType == "EncounterState" ||
-                         stateType == "LevelUpState" || stateType == "PedestalState";
-        if (!selections || combat || !active) return snapshot;
-        var entities = Get(_dataType, "Entities") as IDictionary;
-        if (entities == null)
-            throw new InvalidOperationException("TheBazaar.Data.Entities is unavailable; choices cannot be read reliably.");
-        var byId = new Dictionary<string, object>(StringComparer.Ordinal);
-        foreach (DictionaryEntry entry in entities)
-            if (entry.Value != null) byId[Get(entry.Key, "Value")?.ToString() ?? entry.Key.ToString() ?? ""] = entry.Value;
-        var options = (JArray)snapshot["options"]!;
-        var selectionSet = Get(state, "SelectionSet") as IEnumerable;
-        if (selectionSet == null) return snapshot;
-        foreach (var entry in selectionSet)
-        {
-            var id = entry?.ToString() ?? "";
-            if (byId.TryGetValue(id, out var card)) options.Add(Card(card, null));
-            else if (Guid.TryParse(id, out var templateId))
-                options.Add(new JObject { ["instance_id"] = id, ["template_id"] = templateId.ToString(),
-                    ["attributes"] = new JObject(), ["is_template_only"] = true });
-            else throw new InvalidOperationException("A displayed choice could not be resolved: " + id);
-        }
         return snapshot;
     }
 
-    private static JArray Cards(object? source)
+    private static JArray? Inventory(object? inventory)
     {
-        var result = new JArray();
-        if (source is IEnumerable items)
-            foreach (var item in items) if (item != null) result.Add(Card(item, null));
-        return result;
-    }
-
-    private static JArray Inventory(object? inventory)
-    {
-        var result = new JArray();
         var container = Get(inventory, "Container");
-        if (container == null) return result;
-        var method = container.GetType().GetMethod("GetCardsAndSockets", Flags, null, Type.EmptyTypes, null)
-                     ?? throw new MissingMethodException(container.GetType().FullName, "GetCardsAndSockets");
-        if (method.Invoke(container, null) is IEnumerable entries)
-            foreach (var entry in entries)
-            {
-                var item = Get(entry, "Item1");
-                if (item != null) result.Add(Card(item, Number(Get(entry, "Item2"))));
-            }
+        if (container == null) return null;
+        var method = container.GetType().GetMethod("GetCardsAndSockets", Flags, null, Type.EmptyTypes, null);
+        if (!(method?.Invoke(container, null) is IEnumerable entries)) return null;
+        var result = new JArray();
+        foreach (var entry in entries)
+        {
+            var item = Get(entry, "Item1");
+            if (item != null) result.Add(Card(item, Number(Get(entry, "Item2"))));
+        }
         return result;
     }
 
@@ -125,31 +77,10 @@ internal sealed class GameReader
 
     private static JObject Card(object card, int? socket)
     {
-        var attrs = Attributes(card);
-        var getValue = card.GetType().GetMethods(Flags)
-            .FirstOrDefault(m => m.Name == "GetAttributeValue" && m.GetParameters().Length == 1 &&
-                                 m.GetParameters()[0].ParameterType.IsEnum);
-        if (getValue != null)
-        {
-            var enumType = getValue.GetParameters()[0].ParameterType;
-            foreach (var key in CardAttributes)
-                if (Enum.IsDefined(enumType, key))
-                {
-                    var value = getValue.Invoke(card, new[] { Enum.Parse(enumType, key) });
-                    if (value != null) attrs[key] = Number(value);
-                }
-        }
         return new JObject {
             ["instance_id"] = Get(Get(card, "InstanceId"), "Value")?.ToString() ?? "",
             ["template_id"] = Get(card, "TemplateId")?.ToString() ?? "",
-            ["type"] = Get(card, "Type")?.ToString() ?? "",
-            ["tier"] = Get(card, "Tier")?.ToString() ?? "",
-            ["size"] = Get(card, "Size")?.ToString() ?? "",
-            ["enchantment"] = Get(card, "Enchantment")?.ToString() ?? "",
-            ["socket"] = socket,
-            ["attributes"] = attrs,
-            ["tags"] = Strings(Get(card, "Tags")),
-            ["hidden_tags"] = Strings(Get(card, "HiddenTags"))
+            ["tier"] = Get(card, "Tier")?.ToString() ?? "", ["socket"] = socket
         };
     }
 
@@ -158,19 +89,11 @@ internal sealed class GameReader
         var result = new JObject();
         if (Get(owner, "Attributes") is IDictionary attrs)
             foreach (DictionaryEntry entry in attrs)
-                result[entry.Key.ToString() ?? ""] = Number(entry.Value);
-        return result;
-    }
-
-    private static JArray Strings(object? values)
-    {
-        var result = new JArray();
-        if (values is IEnumerable items) foreach (var item in items) result.Add(item?.ToString() ?? "");
+                if (entry.Key.ToString() is string key && (key == "Gold" || key == "Level")) result[key] = Number(entry.Value);
         return result;
     }
 
     private static int? Number(object? value) => value == null ? (int?)null : Convert.ToInt32(value, CultureInfo.InvariantCulture);
-    private static JToken Token(object? value) => value == null ? JValue.CreateNull() : JToken.FromObject(value);
 
     private static object? Get(object? owner, string name)
     {

@@ -1,0 +1,279 @@
+import copy
+from contextlib import contextmanager
+import ctypes
+from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+import socket
+import sqlite3
+import sys
+import tempfile
+import threading
+import time
+import unittest
+import uuid
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from advisor import DOCUMENT_KIND, catalog_stamp, make_document, serve, snapshot_age
+from catalog import Catalog, atomic_json, default_cache, read_json
+from strategy import StrategyBook, stage_for
+
+
+def fixture_book():
+    data = json.loads((ROOT / "strategies.json").read_text(encoding="utf-8"))
+    names = set(n for route in data["routes"] for part in route["roles"] + route["stages"] for n in part["items"])
+    names.update(n for route in data["routes"] for n in route["anchors"])
+    cards = [{"Id": name, "Type": "Item", "Size": "Medium" if name == "Shotgun" else "Small",
+              "ArtKey": uuid.uuid5(uuid.NAMESPACE_DNS, name).hex, "StartingTier": "Bronze",
+              "Localization": {"Title": {"Text": name}, "Description": {"Text": "造成{ability.0}伤害"}},
+              "Tiers": {"Bronze": {"Attributes": {}}}} for name in sorted(names)]
+    catalog = Catalog(cards=cards)
+    data["verified_catalog_digest"] = StrategyBook(catalog, data).digest
+    return StrategyBook(catalog, data)
+
+
+def state(board=(), **changes):
+    return {"status": "live", "hero": "Karnok", "day": 2, "state_type": "ChoiceState", "snapshot_id": "current",
+            "captured_at_utc": datetime.now(timezone.utc).isoformat(), "board": list(board) if board is not None else None, "stash": [],
+            "unlocked_slots": list(range(6)), "player_attributes": {"Gold": 15, "Level": 1}, **changes}
+
+
+def card(name, tier="Bronze"):
+    return {"template_id": name, "tier": tier}
+
+
+def route(reference, name):
+    return next(r for r in reference["routes"] if r["id"] == name)
+
+
+@contextmanager
+def windows_reader_without_delete_share(path):
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p]
+    kernel.CreateFileW.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    handle = kernel.CreateFileW(str(path), 0x80000000, 3, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value: raise ctypes.WinError(ctypes.get_last_error())
+    try: yield
+    finally: kernel.CloseHandle(handle)
+
+
+class ReferenceTests(unittest.TestCase):
+    def setUp(self): self.book = fixture_book()
+
+    def test_all_routes_stages_and_images_resolve_without_scoring(self):
+        reference = self.book.reference({})
+        self.assertEqual([r["id"] for r in reference["routes"]], ["friends", "boa", "ammo", "poison", "health", "aurora", "burn"])
+        for result, definition in zip(reference["routes"], self.book.data["routes"]):
+            self.assertNotIn("fit", result)
+            self.assertEqual([s["key"] for s in result["stages"]], ["early", "mid", "late"])
+            for stage, original in zip(result["stages"], definition["stages"]):
+                for item, name in zip(stage["items"], original["items"]):
+                    self.assertEqual(item["template_id"], name)
+                    self.assertEqual(item["art_key"], self.book.templates[name]["ArtKey"])
+                    self.assertEqual(item["core"], name in definition["anchors"])
+                    self.assertTrue(item["role"])
+                    self.assertEqual(item["owned"], "未核对")
+
+    def test_owned_and_stash_are_distinct_and_current_tier_is_separate(self):
+        reference = self.book.reference(state([card("Shotgun", "Gold")], stash=[card("Tent", "Silver")]))
+        ammo = route(reference, "ammo")
+        shotgun = ammo["stages"][0]["items"][0]
+        self.assertEqual(shotgun["owned"], "场上")
+        self.assertEqual(shotgun["owned_tier"], "黄金")
+        self.assertEqual(shotgun["starting_tier"], "青铜")
+        self.assertEqual(self.book.item("Tent", [], [card("Tent")])["owned"], "仓库")
+        self.assertEqual(reference["matched_route_id"], "ammo")
+        self.assertEqual(ammo["owned_stash"], ["Tent"])
+        self.assertIn("装填", ammo["missing_roles"])
+
+    def test_empty_inventory_is_known_but_unavailable_inventory_is_not(self):
+        self.assertTrue(self.book.reference(state())["live"])
+        for changes in ({"board": None}, {"stash": None}, {"unlocked_slots": None}):
+            guide = self.book.reference(state(**{"board": [card("Shotgun")], **changes}))
+            self.assertFalse(guide["live"])
+            self.assertIsNone(guide["matched_route_id"])
+            self.assertTrue(all(not r["owned_board"] and not r["missing_roles"] for r in guide["routes"]))
+
+    def test_menu_replay_other_hero_and_unknown_state_never_claim_ownership(self):
+        for changes in ({"status": "menu"}, {"hero": "Dooley"}, {"is_replay": True}, {"state_type": "Unknown"}, {"day": None}):
+            guide = self.book.reference(state([card("Shotgun")], **changes))
+            self.assertFalse(guide["live"])
+            self.assertTrue(all(r["core_count"] == 0 and not r["owned_board"] and not r["owned_stash"] for r in guide["routes"]))
+            self.assertEqual(route(guide, "ammo")["stages"][0]["items"][0]["owned"], "未核对")
+
+    def test_combat_can_browse_and_a_reserve_never_matches_a_route(self):
+        self.assertTrue(self.book.reference(state(in_combat=True, state_type="UnfamiliarCombatState"))["live"])
+        guide = self.book.reference(state(stash=[card("Shotgun"), card("Tent")]))
+        self.assertIsNone(guide["matched_route_id"])
+        self.assertEqual(route(guide, "ammo")["core_count"], 0)
+
+    def test_generic_transition_card_never_locks_a_build_and_order_never_changes(self):
+        self.assertIsNone(self.book.reference(state([card("Spear")]))["matched_route_id"])
+        expected = [r["id"] for r in self.book.reference({})["routes"]]
+        self.assertEqual([r["id"] for r in self.book.reference(state([card("Shotgun")]))["routes"]], expected)
+
+    def test_stage_boundaries_and_effect_placeholders_remain_explicit(self):
+        self.assertEqual([stage_for(d) for d in (None, False, 0, 1, 3, 4, 7, 8)], [None, None, None, "early", "early", "mid", "mid", "late"])
+        self.assertIn("［数值待确认］", self.book.item("Shotgun")["effects"][0])
+        self.assertIn("不是卡牌出现日", self.book.reference({})["stage_note"])
+
+    def test_missing_or_ambiguous_template_never_borrows_another_image(self):
+        self.book.templates["Shotgun"] = None
+        item = self.book.item("Shotgun")
+        self.assertFalse(item["known"])
+        self.assertIn("Shotgun", item["name"])
+        self.assertEqual(item["art_key"], "")
+        self.assertIsNone(route(self.book.reference({}), "ammo")["stages"][0]["slots"])
+        duplicate = copy.deepcopy(self.book.catalog.cards["Tent"])
+        duplicate["Id"] = "another-tent"
+        self.book.catalog.cards[duplicate["Id"]] = duplicate
+        self.assertFalse(StrategyBook(self.book.catalog, self.book.data).item("Tent")["known"])
+
+    def test_template_update_warns_without_removing_the_reference(self):
+        self.book.catalog.cards["Tent"]["Size"] = "Large"
+        updated = StrategyBook(self.book.catalog, self.book.data)
+        self.assertFalse(updated.verified)
+        self.assertEqual(len(updated.reference({})["routes"]), 7)
+        self.assertIn("请核对", updated.reference({})["version_note"])
+
+    def test_reference_is_pure_and_observation_identity_is_authoritative(self):
+        snapshot = state([{"template_id": "unrelated", "name": "Shotgun"}])
+        before = copy.deepcopy(snapshot)
+        guide = self.book.reference(snapshot)
+        self.assertIsNone(guide["matched_route_id"])
+        self.assertEqual(snapshot, before)
+
+    def test_freshness_catalog_error_and_new_run_invalidate_all_dynamic_facts(self):
+        ready = make_document(self.book, state([card("Shotgun")]))
+        self.assertTrue(ready["reference"]["live"])
+        for snapshot, healthy in ((state([card("Shotgun")], captured_at_utc=(datetime.now(timezone.utc)-timedelta(seconds=20)).isoformat()), True),
+                                  (state([card("Shotgun")]), False), ({}, True)):
+            doc = make_document(self.book, snapshot, catalog_ok=healthy)
+            self.assertEqual(doc["kind"], DOCUMENT_KIND)
+            self.assertFalse(doc["reference"]["live"])
+            self.assertEqual(route(doc["reference"], "ammo")["owned_board"], [])
+        new_run = make_document(self.book, state(snapshot_id="new-run"))
+        self.assertIsNone(new_run["reference"]["matched_route_id"])
+        self.assertNotIn("recommendations", new_run)
+
+
+class WorkerTests(unittest.TestCase):
+    def test_reader_handles_brief_atomic_publication_gap(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            path = Path(directory) / "snapshot.json"
+            publisher = threading.Timer(.06, atomic_json, args=(path, {"snapshot_id": "new"}))
+            publisher.start()
+            try: self.assertEqual(read_json(path)["snapshot_id"], "new")
+            finally: publisher.join(1)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows sharing regression")
+    def test_atomic_reply_waits_for_reader_without_truncating_old_json(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            path = Path(directory) / "guide.json"
+            atomic_json(path, {"snapshot_id": "old"})
+            errors = []
+            def publish():
+                try: atomic_json(path, {"snapshot_id": "new"})
+                except OSError as error: errors.append(error)
+            with windows_reader_without_delete_share(path):
+                thread = threading.Thread(target=publish)
+                thread.start()
+                time.sleep(.1)
+                self.assertEqual(read_json(path)["snapshot_id"], "old")
+            thread.join(2)
+            self.assertEqual(errors, [])
+            self.assertEqual(read_json(path)["snapshot_id"], "new")
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows sharing regression")
+    def test_persistent_lock_retains_previous_valid_reply(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            path = Path(directory) / "guide.json"
+            atomic_json(path, {"snapshot_id": "old"})
+            with windows_reader_without_delete_share(path):
+                with self.assertRaises(PermissionError): atomic_json(path, {"snapshot_id": "new"})
+            self.assertEqual(read_json(path)["snapshot_id"], "old")
+
+    def test_catalog_stamp_tracks_chinese_translation_changes(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            cache = Path(directory)
+            (cache / "translations").mkdir()
+            (cache / "GameData.db").write_bytes(b"db")
+            before = catalog_stamp(cache)
+            (cache / "translations/zh-CN.bytes").write_bytes(b"new translation")
+            self.assertNotEqual(catalog_stamp(cache), before)
+
+    def test_invalid_or_naive_timestamp_is_not_live(self):
+        self.assertEqual(snapshot_age({}), float("inf"))
+        self.assertEqual(snapshot_age({"captured_at_utc": "invalid"}), float("inf"))
+        self.assertEqual(snapshot_age({"captured_at_utc": "2026-10-11T12:00:00"}), float("inf"))
+
+    @unittest.skipUnless((default_cache() / "GameData.db").exists(), "Installed game catalog unavailable")
+    def test_real_worker_ignores_legacy_api_settings_and_invalidates_old_run(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            runtime = Path(directory)
+            settings = runtime / "settings.json"
+            atomic_json(settings, {"cache_dir": "", "model_api": {"enabled": True, "key_file": "must-not-be-read"}})
+            book = StrategyBook(Catalog())
+            shotgun = book.templates["Shotgun"]["Id"]
+            atomic_json(runtime / "snapshot.json", state([card(shotgun)]))
+            with patch.object(socket, "socket", side_effect=AssertionError("Handbook must stay offline")):
+                thread = threading.Thread(target=serve, args=(runtime, 0, settings), kwargs={"max_seconds": 3.2})
+                thread.start()
+                def wait_for(predicate):
+                    deadline = time.monotonic() + 1.5
+                    while time.monotonic() < deadline:
+                        if (runtime / "guide.json").exists():
+                            document = read_json(runtime / "guide.json")
+                            if predicate(document): return document
+                        time.sleep(.04)
+                    self.fail("Worker did not publish expected reference")
+                try:
+                    live = wait_for(lambda d: d["status"] == "live")
+                    self.assertEqual(route(live["reference"], "ammo")["core_count"], 1)
+                    atomic_json(runtime / "snapshot.json", state(snapshot_id="new-run", hero="Dooley"))
+                    other = wait_for(lambda d: d["snapshot_id"] == "new-run")
+                    self.assertFalse(other["reference"]["live"])
+                    self.assertEqual(route(other["reference"], "ammo")["owned_board"], [])
+                    stale = state(snapshot_id="stale", captured_at_utc=(datetime.now(timezone.utc)-timedelta(seconds=20)).isoformat())
+                    atomic_json(runtime / "snapshot.json", stale)
+                    self.assertEqual(wait_for(lambda d: d["snapshot_id"] == "stale")["status"], "stale")
+                finally: thread.join(5)
+            self.assertFalse(thread.is_alive())
+            self.assertFalse((runtime / "decisions.jsonl").exists())
+            self.assertFalse((runtime / "recommendation.json").exists())
+
+    def test_database_reload_failure_preserves_static_guide_and_does_not_end_worker(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            runtime = Path(directory)
+            book = fixture_book()
+            atomic_json(runtime / "snapshot.json", state([card("Shotgun")]))
+            with patch("advisor.Catalog", side_effect=[book.catalog, sqlite3.DatabaseError("database updating")]), \
+                 patch("advisor.StrategyBook", return_value=book), patch("advisor.catalog_stamp", side_effect=[1, 2]):
+                thread = threading.Thread(target=serve, args=(runtime,), kwargs={"max_seconds": 5.8})
+                thread.start()
+                thread.join(7)
+            self.assertFalse(thread.is_alive())
+            document = read_json(runtime / "guide.json")
+            self.assertEqual(document["status"], "catalog_error")
+            self.assertEqual(len(document["reference"]["routes"]), 7)
+            self.assertFalse(document["reference"]["live"])
+
+
+class InstalledCatalogTests(unittest.TestCase):
+    def test_all_reference_cards_match_installed_catalog_and_boards_fit(self):
+        if not (default_cache() / "GameData.db").exists(): self.skipTest("Installed game catalog unavailable")
+        book = StrategyBook(Catalog())
+        self.assertTrue(all(book.templates.values()))
+        for result in book.reference({})["routes"]:
+            self.assertTrue(result["sources"])
+            for stage in result["stages"]:
+                self.assertLessEqual(stage["slots"], 10)
+                for item in stage["items"]:
+                    self.assertEqual(item["art_key"], book.catalog.cards[item["template_id"]]["ArtKey"])
+                    self.assertTrue(item["effects"])
+
+
+if __name__ == "__main__": unittest.main()

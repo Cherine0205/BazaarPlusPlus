@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GameDirectory Condition="'$(GameDirectory)' == ''">D:\SteamLibrary\steamapps\common\The Bazaar</GameDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/ReferenceViewState.cs" Link="ReferenceViewState.cs" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(GameDirectory)\TheBazaar_Data\Managed\Newtonsoft.Json.dll" />
+  </ItemGroup>
+</Project>

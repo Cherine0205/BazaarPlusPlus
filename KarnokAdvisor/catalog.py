@@ -1,7 +1,6 @@
 """Read the game's own cached database. All database connections are read only."""
 from __future__ import annotations
 
-import copy
 from contextlib import closing
 import json
 import os
@@ -21,12 +20,11 @@ def default_cache() -> Path:
 
 class Catalog:
     def __init__(self, cache: Path | None = None, *, cards=None, translations=None, mode=None):
-        self.cache = cache or default_cache()
+        self.cache = (cache or default_cache()).resolve()
         if cards is not None:
             self.cards = {c["Id"]: c for c in cards}
             self.translations = translations or {}
             self.mode = mode or {}
-            self.etag = "test-fixture"
             return
         path = self.cache / "GameData.db"
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as connection:
@@ -40,8 +38,6 @@ class Catalog:
         if translation.exists():
             with closing(sqlite3.connect(translation.as_uri() + "?mode=ro", uri=True)) as connection:
                 self.translations = dict(connection.execute("SELECT hash,text FROM translation"))
-        manifest = self.cache / "manifest.json"
-        self.etag = json.loads(manifest.read_text(encoding="utf-8-sig")).get("Entries", {}).get("GameData", {}).get("ETag", "") if manifest.exists() else ""
 
     def localize(self, text: dict | None) -> str:
         text = text or {}
@@ -51,24 +47,10 @@ class Catalog:
         card = self.cards.get(template_id, {})
         return self.localize(card.get("Localization", {}).get("Title")) or card.get("InternalName") or template_id
 
-    def enrich(self, raw: dict) -> dict:
-        card = copy.deepcopy(raw)
-        template = self.cards.get(card.get("template_id"), {})
-        tier = card.get("tier") or template.get("StartingTier", "Bronze")
-        base = template.get("Tiers", {}).get(tier, {}).get("Attributes", {})
-        card["attributes"] = {**base, **(card.get("attributes") or {})}
-        card["tier"] = tier
-        card["type"] = card.get("type") or template.get("Type", "Unknown")
-        card["size"] = card.get("size") or template.get("Size", "")
-        card["span"] = SIZES.get(card["size"])
-        card["name"] = self.name(card.get("template_id", ""))
-        card["tags"] = card.get("tags") or template.get("Tags", [])
-        card["hidden_tags"] = card.get("hidden_tags") or template.get("HiddenTags", [])
-        card["template_known"] = bool(template)
-        return card
-
     def template_card(self, template_id: str, tier: str | None = None) -> dict:
-        return self.enrich({"template_id": template_id, "tier": tier or "", "attributes": {}, "is_template_only": True})
+        template = self.cards.get(template_id, {})
+        return {"template_id": template_id, "tier": tier or template.get("StartingTier", "Bronze"),
+                "name": self.name(template_id), "span": SIZES.get(template.get("Size"))}
 
     def texts(self, card: dict) -> list[str]:
         template = self.cards.get(card.get("template_id"), {})
