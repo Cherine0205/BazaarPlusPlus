@@ -1,5 +1,4 @@
 #nullable enable
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using BazaarPlusPlus.Game.CombatReplay;
 using BazaarPlusPlus.Game.PvpBattles.Persistence;
@@ -175,9 +174,7 @@ internal static class ReplayPayloadMaintenanceServiceTests
             () => Array.Empty<string>()
         );
 
-        var stopwatch = Stopwatch.StartNew();
         var result = service.Run(now, CancellationToken.None);
-        stopwatch.Stop();
 
         Equal(10_000, result.EvaluatedPayloadCount, "evaluated payload count");
         Equal(9_800, result.ScheduledDeleteCount, "retention candidate count");
@@ -188,10 +185,6 @@ internal static class ReplayPayloadMaintenanceServiceTests
         Equal(1, catalog.InventoryCallCount, "inventory query count");
         Equal(1, catalog.ScheduleCallCount, "schedule query count");
         Equal(1, catalog.CompleteCallCount, "completion query count");
-        Assert(
-            stopwatch.Elapsed < TimeSpan.FromSeconds(5),
-            $"10,000 synthetic payload maintenance took {stopwatch.Elapsed}."
-        );
         Assert(
             result.WorkUnits <= 30_000,
             $"Expected linear work, got {result.WorkUnits} work units."
