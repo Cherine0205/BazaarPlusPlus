@@ -61,6 +61,7 @@ public sealed class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        _panel?.PumpArt();
         if (string.IsNullOrEmpty(_runtime) || Time.unscaledTime < _nextCapture) return;
         _nextCapture = Time.unscaledTime + 0.6f;
         try
@@ -114,7 +115,7 @@ public sealed class Plugin : BaseUnityPlugin
             _nextCapture = 0;
             input.Use();
         }
-        _panel ??= new AdvisorPanel(transform);
+        _panel ??= new AdvisorPanel(transform, text => Logger.LogWarning(text));
         var snapshot = _snapshot;
         var recommendation = _recommendation;
         _visible = _panel.Draw(_visible, snapshot, recommendation, _message, () => {

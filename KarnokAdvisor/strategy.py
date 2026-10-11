@@ -68,11 +68,11 @@ class StrategyBook:
     def item(self, name, board=(), stash=()):
         template = self.templates.get(name)
         if not template:
-            return {"name": name + "（模板未找到）", "known": False, "owned": "", "span": None}
+            return {"name": name + "（模板未找到）", "known": False, "owned": "", "span": None, "art_key": ""}
         tier = template.get("StartingTier", "")
         card = self.catalog.template_card(template["Id"])
         return {"name": card["name"], "template_id": template["Id"], "known": True, "span": card["span"],
-                "starting_tier": TIER_ZH.get(tier, tier),
+                "starting_tier": TIER_ZH.get(tier, tier), "art_key": template.get("ArtKey", ""),
                 "owned": "场上" if self.find(board, [name]) else "仓库" if self.find(stash, [name]) else "未持有"}
 
     def reference(self, state):
@@ -86,7 +86,9 @@ class StrategyBook:
             hits = sum(any(i["owned"] == "场上" for i in role["items"]) for role in roles)
             stages = []
             for stage in route["stages"]:
-                items = [self.item(n, board, stash) for n in stage["items"]]
+                items = [{**self.item(n, board, stash), "core": n in route["anchors"],
+                          "role": " / ".join(role["name"] for role in route["roles"] if n in role["items"]) or "过渡 / 辅助"}
+                         for n in stage["items"]]
                 slots = sum(i["span"] for i in items) if all(i["span"] for i in items) else None
                 stages.append({**stage, "label": dict(STAGES)[stage["key"]], "items": items, "slots": slots})
             names = list(dict.fromkeys(n for role in route["roles"] for n in role["items"]))

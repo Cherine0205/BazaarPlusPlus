@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+import uuid
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -21,7 +22,7 @@ def fixture_engine():
     medium = {"Tent", "Shotgun", "Boa Constrictor", "Lost Blade", "Forest Cloak"}
     passive = {"Tent", "Forest Cloak", "Hunter's Journal", "Toxic Sigil", "Flame Sigil", "Wing Sigil"}
     weapons = set(AMMO_WEAPONS + HEALTH_WEAPONS) | {"Spear", "Boa Constrictor", "Outlands Terror"}
-    cards = [{"Id": n, "InternalName": n, "Type": "Item", "StartingTier": "Bronze",
+    cards = [{"Id": n, "InternalName": n, "ArtKey": uuid.uuid5(uuid.NAMESPACE_DNS, n).hex, "Type": "Item", "StartingTier": "Bronze",
               "Size": "Medium" if n in medium else "Small", "Tags": ["Weapon"] if n in weapons else [],
               "Localization": {"Title": {"Text": n}}, "HiddenTags": [],
               "Tiers": {tier: {"Attributes": {"DamageAmount": 10 * (i + 1) if n in weapons else 0,
@@ -186,14 +187,48 @@ class StrategyTests(unittest.TestCase):
     def test_model_gets_same_current_components_stage_and_version_guard(self):
         s = state([card("Shotgun", 0)], stash=[card("Tent", 2)])
         before = copy.deepcopy(s)
-        reference = model_context(self.engine, s)["strategy_reference"]
+        guide = self.book.reference(self.prepared(s))
+        before_guide = copy.deepcopy(guide)
+        with patch.object(self.book, "reference", return_value=guide):
+            reference = model_context(self.engine, s)["strategy_reference"]
         ammo = next(r for r in reference["routes"] if r["name"].startswith("弹药"))
         self.assertTrue(reference["verified"] and reference["live"])
         self.assertEqual(reference["stage"], "mid")
         self.assertEqual(ammo["owned_board"], ["Shotgun"])
         self.assertEqual(ammo["owned_stash"], ["Tent"])
         self.assertEqual(ammo["current_stage"]["key"], "mid")
+        self.assertNotIn('"art_key"', json.dumps(reference))
+        self.assertEqual(guide, before_guide)
         self.assertEqual(s, before)
+
+    def test_stage_images_keep_template_identity_core_role_and_ownership(self):
+        guide = self.book.reference(self.prepared(state([card("Shotgun")], stash=[card("Tent")])))
+        for route in guide["routes"]:
+            definition = next(r for r in self.book.data["routes"] if r["id"] == route["id"])
+            for stage in route["stages"]:
+                names = next(s["items"] for s in definition["stages"] if s["key"] == stage["key"])
+                for name, item in zip(names, stage["items"]):
+                    self.assertEqual(item["template_id"], self.book.templates[name]["Id"])
+                    self.assertEqual(item["art_key"], self.book.templates[name]["ArtKey"])
+                    self.assertEqual(item["core"], name in definition["anchors"])
+                    self.assertTrue(item["role"])
+                    self.assertEqual(item["owned"], "场上" if name == "Shotgun" else "仓库" if name == "Tent" else "未持有")
+        ammo = next(r for r in guide["routes"] if r["id"] == "ammo")
+        shotgun = ammo["stages"][0]["items"][0]
+        self.assertTrue(shotgun["core"])
+        self.assertEqual(shotgun["role"], "弹药输出")
+
+    def test_missing_art_or_template_keeps_a_named_reference_without_guessing_an_image(self):
+        self.book.templates["Shotgun"].pop("ArtKey")
+        item = self.book.item("Shotgun")
+        self.assertTrue(item["known"])
+        self.assertEqual(item["name"], "Shotgun")
+        self.assertEqual(item["art_key"], "")
+        self.book.templates["Shotgun"] = None
+        item = self.book.item("Shotgun")
+        self.assertFalse(item["known"])
+        self.assertIn("Shotgun", item["name"])
+        self.assertEqual(item["art_key"], "")
 
     def test_direct_gold_upgrade_preserves_observed_permanent_damage(self):
         s = self.prepared(state([card("Shotgun", 0, DamageAmount=70)]))
@@ -259,6 +294,9 @@ class InstalledCatalogStrategyTests(unittest.TestCase):
             for stage in route["stages"]:
                 self.assertLessEqual(stage["slots"], 10, route["name"])
                 self.assertTrue(all(item["known"] and item["starting_tier"] for item in stage["items"]))
+                for item in stage["items"]:
+                    self.assertEqual(len(item["art_key"]), 32)
+                    self.assertEqual(item["art_key"], book.catalog.cards[item["template_id"]]["ArtKey"])
         if book.verified:
             self.assertIn("黄金 D6+", guide["tier_note"])
             trapvine = book.catalog.template_card(book.templates["Trapvine"]["Id"])

@@ -37,10 +37,14 @@ def model_context(engine: Engine, snapshot: dict) -> dict:
     for section in ("board", "stash", "skills", "options"):
         result[section] = [{**c, "effects": engine.catalog.texts(c)} for c in state[section]]
     guide = engine.strategies.reference(state)
+    def current_stage(route):
+        stage = next((s for s in route["stages"] if s["key"] == guide["stage"]), None)
+        return {**stage, "items": [{k: v for k, v in item.items() if k != "art_key"} for item in stage["items"]]} if stage else None
+
     result["strategy_reference"] = {k: v for k, v in guide.items() if k != "routes"}
     result["strategy_reference"]["routes"] = [
         {k: route[k] for k in ("name", "signal", "status", "owned_board", "owned_stash", "missing_roles", "pivot", "caution", "skills", "sources")}
-        | {"current_stage": next((s for s in route["stages"] if s["key"] == guide["stage"]), None)}
+        | {"current_stage": current_stage(route)}
         for route in guide["routes"]]
     return result
 

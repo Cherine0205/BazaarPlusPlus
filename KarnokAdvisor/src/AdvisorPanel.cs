@@ -26,6 +26,7 @@ internal sealed class AdvisorPanel : IDisposable
     private readonly Font _bodyFont;
     private readonly Font _titleFont;
     private readonly GameObject _blocker;
+    private readonly CardArtCache _art;
     private readonly RectTransform _blockerRect;
     private readonly GUIStyle _frame;
     private readonly GUIStyle _primary;
@@ -37,6 +38,8 @@ internal sealed class AdvisorPanel : IDisposable
     private readonly GUIStyle _small;
     private readonly GUIStyle _title;
     private readonly GUIStyle _cardTitle;
+    private readonly GUIStyle _tileTitle;
+    private readonly GUIStyle _tileMeta;
     private readonly GUIStyle _number;
     private readonly GUIStyle _windowStyle;
     private readonly GUIStyle _scrollTrack;
@@ -59,8 +62,9 @@ internal sealed class AdvisorPanel : IDisposable
     private string _message = "";
     private Action? _refresh;
 
-    internal AdvisorPanel(Transform parent)
+    internal AdvisorPanel(Transform parent, Action<string> warn)
     {
+        _art = new CardArtCache(warn);
         _bodyFont = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "SimHei", "Arial" }, 18);
         _titleFont = Font.CreateDynamicFontFromOSFont(new[] { "SimSun", "Microsoft YaHei", "Georgia" }, 26);
         _body = TextStyle(_bodyFont, 14, Ivory, true);
@@ -68,6 +72,8 @@ internal sealed class AdvisorPanel : IDisposable
         _small = TextStyle(_bodyFont, 11, Muted, false);
         _title = TextStyle(_titleFont, 24, Ivory, false, FontStyle.Bold);
         _cardTitle = TextStyle(_bodyFont, 19, Ivory, true, FontStyle.Bold);
+        _tileTitle = TextStyle(_bodyFont, 13, Ivory, true, FontStyle.Bold);
+        _tileMeta = TextStyle(_bodyFont, 11, Muted, true);
         _number = TextStyle(_bodyFont, 20, Ivory, false, FontStyle.Bold);
 
         _frame = Surface(Hex(0x211C29), Hex(0x8C6942), 7, 2, 0.018f);
@@ -106,6 +112,8 @@ internal sealed class AdvisorPanel : IDisposable
         _blockerRect.pivot = new Vector2(0, 1);
         _blocker.SetActive(false);
     }
+
+    internal void PumpArt() => _art.Pump();
 
     internal bool Draw(bool visible, JObject? snapshot, JObject? recommendation, string message, Action refresh)
     {
@@ -384,9 +392,9 @@ internal sealed class AdvisorPanel : IDisposable
             _guideScroll = Vector2.zero;
         }
         var hasSignal = routes.Any(r => (bool?)r["signal"] == true);
-        var caption = _manualRoute ? "浏览 " : hasSignal ? "按持有核心 " : "流派参考 ";
+        var caption = _manualRoute ? "浏览 " : hasSignal ? "匹配 " : "参考 ";
         if (GUI.Button(new Rect(viewport.x + 49, viewport.y, viewport.width - 98, 27),
-            caption + (index + 1) + " / " + routes.Count + (_manualRoute ? "  ·  点击恢复匹配" : "  ·  左右浏览"), _smallButton))
+            caption + Value(routes[index]["name"]) + "  " + (index + 1) + " / " + routes.Count, _smallButton))
         {
             _manualRoute = false;
             index = 0;
@@ -401,12 +409,34 @@ internal sealed class AdvisorPanel : IDisposable
         var route = (JObject)routes[index];
         if (!_manualRoute && _selectedRoute != (string?)route["id"]) _guideScroll = Vector2.zero;
         _selectedRoute = (string?)route["id"] ?? "";
-        var lines = new List<(string Text, GUIStyle Style, Color Color, string Url)>();
+        var jumpStage = "";
+        var stageKeys = new[] { "early", "mid", "late" };
+        var stageLabels = new[] { "前期 D1–3", "中期 D4–7", "后期 D8+" };
+        for (var n = 0; n < stageKeys.Length; n++)
+        {
+            var width = (viewport.width - 16) / 3;
+            if (GUI.Button(new Rect(viewport.x + 4 + n * (width + 4), viewport.y + 35, width, 25),
+                ((string?)guide["stage"] == stageKeys[n] ? "◆ " : "") + stageLabels[n], _smallButton)) jumpStage = stageKeys[n];
+        }
+        var lines = new List<(string Text, GUIStyle Style, Color Color, string Url, JArray? Cards)>();
+        var stageLines = new Dictionary<string, int>(StringComparer.Ordinal);
         void Add(string text, GUIStyle? style = null, Color? color = null, string url = "") =>
-            lines.Add((text, style ?? _body, color ?? Ivory, url));
+            lines.Add((text, style ?? _body, color ?? Ivory, url, null));
         Add(Value(route["name"]), _cardTitle, Gold);
         Add(Value(guide["stage_label"]) + "  ·  " + Value(route["status"]), _muted, Cyan);
         Add(Value(route["summary"]));
+        Add("图卡顺序不代表摆位，邻接要求见阶段说明。", _tileMeta, Muted);
+        foreach (var stage in (route["stages"] as JArray ?? new JArray()).OfType<JObject>())
+        {
+            stageLines[(string?)stage["key"] ?? ""] = lines.Count;
+            var current = (string?)stage["key"] == (string?)guide["stage"];
+            Add((current ? "◆ 当前阶段  " : "◇ ") + Value(stage["label"]), _body, current ? Gold : Cyan);
+            var slots = Value(stage["slots"]);
+            Add("参考组合 · " + slots + " 格" + ((bool?)guide["live"] == true ? " / 当前解锁 " + Value(guide["unlocked_slots"]) + " 格" : ""), _muted, Muted);
+            lines.Add(("", _body, Ivory, "", stage["items"] as JArray ?? new JArray()));
+            Add(Value(stage["plan"]), _muted);
+        }
+        Add("当前组件与转型", _body, Gold);
         if ((bool?)guide["live"] == true)
         {
             var owned = Strings(route["owned_board"]);
@@ -418,26 +448,13 @@ internal sealed class AdvisorPanel : IDisposable
             if ((bool?)route["signal"] != true) Add("还没有这条路线的辨识核心，先保证当日战力。", _muted, Amber);
         }
         else Add("当前状态不足以判断持有和缺牌，下面仅供查阅。", _muted, Amber);
-        Add("转型条件", _body, Gold);
         Add(Value(route["pivot"]), _muted);
-        Add(Value(guide["stage_note"]), _muted, Muted);
-        Add(Value(guide["tier_note"]), _muted, Muted);
-        foreach (var stage in (route["stages"] as JArray ?? new JArray()).OfType<JObject>())
-        {
-            var current = (string?)stage["key"] == (string?)guide["stage"];
-            Add((current ? "◆ 当前阶段  " : "◇ ") + Value(stage["label"]), _body, current ? Gold : Cyan);
-            var slots = Value(stage["slots"]);
-            Add("参考组合 · " + slots + " 格" + ((bool?)guide["live"] == true ? " / 当前解锁 " + Value(guide["unlocked_slots"]) + " 格" : ""), _muted, Muted);
-            var pieces = (stage["items"] as JArray ?? new JArray()).OfType<JObject>().Select(item =>
-                Value(item["name"]) + "［" + Value(item["starting_tier"]) + "·" + Value(item["span"]) + "格"
-                + ((bool?)guide["live"] == true ? "·" + Value(item["owned"]) : "") + "］");
-            Add(string.Join(" / ", pieces));
-            Add(Value(stage["plan"]), _muted);
-        }
         Add("升级与技能取舍", _body, Gold);
         Add(Value(route["skills"]), _muted);
         Add("注意条件", _body, Amber);
         Add(Value(route["caution"]), _muted, Amber);
+        Add(Value(guide["stage_note"]), _muted, Muted);
+        Add(Value(guide["tier_note"]), _muted, Muted);
         Add("资料与版本", _body, Gold);
         Add("复核 " + Value(guide["reviewed_at"]) + " · 对照补丁 " + Value(guide["reviewed_patch"]), _muted, Muted);
         Add(Value(guide["version_note"]), _muted, (bool?)guide["verified"] == true ? Muted : Amber);
@@ -445,12 +462,14 @@ internal sealed class AdvisorPanel : IDisposable
         foreach (var source in (route["sources"] as JArray ?? new JArray()).OfType<JObject>())
             Add(Value(source["title"]) + " · " + Value(source["date"]), _muted, Gold, (string?)source["url"] ?? "");
 
-        var scrollView = new Rect(viewport.x, viewport.y + 37, viewport.width, viewport.height - 37);
+        var scrollView = new Rect(viewport.x, viewport.y + 70, viewport.width, viewport.height - 70);
         var contentWidth = scrollView.width - 18;
         var textWidth = contentWidth - 28;
-        var heights = lines.Select(line => TextHeight(line.Style, line.Text, textWidth) + 13).ToList();
+        var heights = lines.Select(line => line.Cards == null ? TextHeight(line.Style, line.Text, textWidth) + 13
+            : (float)Math.Ceiling(line.Cards.Count / 3f) * (GuideCardHeight + 8)).ToList();
         var contentHeight = heights.Sum() + 24;
         var limit = Math.Max(0, contentHeight - scrollView.height);
+        if (stageLines.TryGetValue(jumpStage, out var stageLine)) _guideScroll.y = heights.Take(stageLine).Sum() + 14;
         _guideScroll.y = Mathf.Clamp(_guideScroll.y, 0, limit);
         _guideScroll = GUI.BeginScrollView(scrollView, _guideScroll, new Rect(0, 0, contentWidth, contentHeight), false, false, GUIStyle.none, GUIStyle.none);
         GUI.Box(new Rect(3, 0, contentWidth - 3, contentHeight), GUIContent.none, _secondary);
@@ -459,7 +478,11 @@ internal sealed class AdvisorPanel : IDisposable
         {
             var line = lines[n];
             var rect = new Rect(16, y, textWidth, heights[n] - 9);
-            if (line.Url.Length > 0)
+            if (line.Cards != null)
+            {
+                DrawGuideCards(new Rect(16, y, textWidth, heights[n]), line.Cards, scrollView.height, (bool?)guide["live"] == true);
+            }
+            else if (line.Url.Length > 0)
             {
                 if (GUI.Button(rect, line.Text, _smallButton)) Application.OpenURL(line.Url);
             }
@@ -472,6 +495,35 @@ internal sealed class AdvisorPanel : IDisposable
             _scrollThumb.fixedHeight = Math.Max(30, scrollView.height * scrollView.height / contentHeight);
             _guideScroll.y = GUI.VerticalSlider(new Rect(scrollView.xMax - 7, scrollView.y, 6, scrollView.height),
                 _guideScroll.y, 0, limit, _scrollTrack, _scrollThumb);
+        }
+    }
+
+    private const float GuideCardHeight = 214;
+
+    private void DrawGuideCards(Rect rect, JArray cards, float viewportHeight, bool live)
+    {
+        const float gap = 8;
+        var width = (rect.width - gap * 2) / 3;
+        for (var n = 0; n < cards.Count; n++)
+        {
+            var tile = new Rect(rect.x + n % 3 * (width + gap), rect.y + n / 3 * (GuideCardHeight + gap), width, GuideCardHeight);
+            if (tile.yMax < _guideScroll.y || tile.y > _guideScroll.y + viewportHeight) continue;
+            var item = cards[n];
+            var core = (bool?)item["core"] == true;
+            GUI.Box(tile, GUIContent.none, core ? _primary : _secondary);
+            var artRect = new Rect(tile.x + 6, tile.y + 6, width - 12, 96);
+            Fill(artRect, Hex(0x191720));
+            var texture = _art.Get((string?)item["art_key"] ?? "", Event.current.type == EventType.Repaint, out var unavailable);
+            // The native painting's alpha contains shader FX masks, not image transparency.
+            if (texture != null) GUI.DrawTexture(artRect, texture, ScaleMode.ScaleToFit, false);
+            else Label(artRect, unavailable ? "暂无卡图" : "卡图加载中", _tileMeta, Muted, TextAnchor.MiddleCenter);
+            if (core) Badge(new Rect(artRect.x + 3, artRect.y + 3, 32, 18), "核心", Gold);
+            Label(new Rect(tile.x + 7, tile.y + 109, width - 14, 35), Value(item["name"]), _tileTitle, Ivory, TextAnchor.UpperCenter);
+            Label(new Rect(tile.x + 7, tile.y + 145, width - 14, 17), Value(item["starting_tier"]) + " · " + Value(item["span"]) + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
+            Label(new Rect(tile.x + 7, tile.y + 164, width - 14, 29), Value(item["role"]), _tileMeta, core ? Gold : Cyan, TextAnchor.UpperCenter);
+            var owned = live ? Value(item["owned"]) : "参考组件";
+            Label(new Rect(tile.x + 7, tile.y + 194, width - 14, 17), owned, _tileMeta,
+                owned == "场上" ? Green : owned == "仓库" ? Amber : Muted, TextAnchor.UpperCenter);
         }
     }
 
@@ -614,6 +666,7 @@ internal sealed class AdvisorPanel : IDisposable
 
     public void Dispose()
     {
+        _art.Dispose();
         UnityEngine.Object.Destroy(_blocker);
         UnityEngine.Object.Destroy(_bodyFont);
         UnityEngine.Object.Destroy(_titleFont);
