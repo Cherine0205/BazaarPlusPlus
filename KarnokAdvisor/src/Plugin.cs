@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace KarnokAdvisor;
 
-[BepInPlugin("local.karnok.advisor", "Karnok Handbook", "0.4.0")]
+[BepInPlugin("local.karnok.advisor", "Karnok Handbook", "0.5.0")]
 public sealed class Plugin : BaseUnityPlugin
 {
     private readonly GameReader _reader = new GameReader();
@@ -60,7 +60,7 @@ public sealed class Plugin : BaseUnityPlugin
                 };
                 _worker = Process.Start(start);
             }
-            Logger.LogInfo("Karnok Handbook 0.4.0 loaded. Local reference and ownership only; F9 panel, F10 sync. Runtime: " + _runtime);
+            Logger.LogInfo("Karnok Handbook 0.5.0 loaded. Local reference and ownership only; F9 panel, F10 sync. Runtime: " + _runtime);
         }
         catch (Exception ex)
         {
@@ -109,8 +109,7 @@ public sealed class Plugin : BaseUnityPlugin
             if ((string?)response["kind"] != ReferenceViewState.DocumentKind) return;
             if (!(response["reference"] is JObject) && _document?["reference"] is JObject cached)
             {
-                response["reference"] = cached.DeepClone();
-                response["reference"]!["live"] = false;
+                response["reference"] = ReferenceViewState.CachedReference(cached, (string?)response["status"] == "catalog_error");
             }
             _document = response;
         }

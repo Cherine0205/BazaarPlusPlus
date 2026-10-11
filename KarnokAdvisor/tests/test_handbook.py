@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import ctypes
 from datetime import datetime, timedelta, timezone
 import json
+import re
 from pathlib import Path
 import socket
 import sqlite3
@@ -50,6 +51,10 @@ def route(reference, name):
     return next(r for r in reference["routes"] if r["id"] == name)
 
 
+def matched(reference, season="s19"):
+    return next(iter(reference["matched_route_ids"][season]), None)
+
+
 def components(route):
     return [item for stage in route["stages"] for item in stage["base_items"] + stage["optional_items"]]
 
@@ -71,7 +76,7 @@ class ReferenceTests(unittest.TestCase):
 
     def test_all_routes_stages_and_images_resolve_without_scoring(self):
         reference = self.book.reference({})
-        self.assertEqual([r["id"] for r in reference["routes"]], ["friends", "boa", "ammo", "poison", "health", "aurora", "burn"])
+        self.assertEqual([r["id"] for r in reference["routes"]], ["friends", "boa", "ammo", "poison", "health", "aurora", "burn", "wild_bear", "karst", "anaconda", "hydra", "flamespitter"])
         for result, definition in zip(reference["routes"], self.book.data["routes"]):
             self.assertNotIn("fit", result)
             self.assertEqual([s["key"] for s in result["stages"]], ["early", "mid", "late"])
@@ -93,6 +98,38 @@ class ReferenceTests(unittest.TestCase):
                     self.assertEqual(item["art_key"], self.book.templates[item["template_id"]]["ArtKey"])
                     self.assertTrue(item["role"])
                     self.assertEqual(item["owned"], "未核对")
+
+    def test_season_membership_and_provenance_are_explicit(self):
+        reference = self.book.reference({})
+        self.assertEqual(reference["default_season"], "s19")
+        self.assertEqual({s["id"] for s in reference["seasons"]}, {"s18", "s19"})
+        self.assertEqual([r["id"] for r in reference["routes"] if "s18" in r["seasons"]], ["friends", "poison", "aurora"])
+        self.assertEqual(sum("s19" in r["seasons"] for r in reference["routes"]), 12)
+        self.assertTrue(all(set(r["season_notes"]) == set(r["seasons"]) for r in reference["routes"]))
+        for change in (lambda d: d.update(default_season="s99"),
+                       lambda d: d["routes"][0].update(seasons=["s99"]),
+                       lambda d: d["routes"][0].update(season_notes={})):
+            data = copy.deepcopy(self.book.data)
+            change(data)
+            with self.assertRaises(ValueError): StrategyBook(self.book.catalog, data)
+
+    def test_matching_is_scoped_to_season_and_never_falls_back_to_an_unowned_core(self):
+        reference = self.book.reference(state([card("Hydra Tree")]))
+        self.assertEqual(reference["matched_route_ids"]["s19"], ["hydra"])
+        self.assertEqual(reference["matched_route_ids"]["s18"], [])
+        reference = self.book.reference(state([card("Outlands Terror")]))
+        self.assertEqual(reference["matched_route_ids"]["s18"], ["friends"])
+        self.assertEqual(self.book.reference(state(stash=[card("Hydra Tree")]))["matched_route_ids"], {"s19": [], "s18": []})
+
+    def test_all_best_ties_are_published_in_stable_order_for_current_view_retention(self):
+        data = copy.deepcopy(self.book.data)
+        for definition in data["routes"]:
+            if definition["id"] in {"boa", "ammo"}:
+                definition["anchors"] = ["Shotgun"]
+                definition["roles"] = []
+        reference = StrategyBook(self.book.catalog, data).reference(state([card("Shotgun")]))
+        self.assertEqual(reference["matched_route_ids"]["s19"], ["boa", "ammo"])
+        self.assertEqual(reference["matched_route_ids"]["s18"], [])
 
     def test_all_positioning_blocks_preserve_sizes_order_and_ten_slot_geometry(self):
         for result in self.book.reference({})["routes"]:
@@ -171,7 +208,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertFalse(reference["live"])
         self.assertIn("暂不可读", reference["version_note"])
         self.assertTrue(self.book.verified)
-        self.assertEqual(len(reference["routes"]), 7)
+        self.assertEqual(len(reference["routes"]), 12)
         for result in reference["routes"]:
             for stage in result["stages"]:
                 self.assertFalse(stage["positioning"]["available"])
@@ -209,7 +246,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertTrue(all(item["owned"] != "场上" for item in friends["base_items"]))
         self.assertFalse(any(item["core"] for item in friends["optional_items"]))
         self.assertEqual(next(item for item in friends["base_items"] if item["template_id"] == "Spear")["core_label"], "过渡核心")
-        self.assertIsNone(guide["matched_route_id"])
+        self.assertIsNone(matched(guide))
 
     def test_replacements_account_for_removed_size_and_can_still_exceed_capacity(self):
         data = copy.deepcopy(self.book.data)
@@ -266,7 +303,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(shotgun["owned_tier"], "黄金")
         self.assertEqual(shotgun["starting_tier"], "青铜")
         self.assertEqual(self.book.item("Tent", [], [card("Tent")])["owned"], "仓库")
-        self.assertEqual(reference["matched_route_id"], "ammo")
+        self.assertEqual(matched(reference), "ammo")
         self.assertEqual(ammo["stages"][1]["base_items"][1]["owned"], "仓库")
         self.assertEqual(ammo["role_count"], 1)
 
@@ -275,7 +312,7 @@ class ReferenceTests(unittest.TestCase):
         for changes in ({"board": None}, {"stash": None}, {"unlocked_slots": None}):
             guide = self.book.reference(state(**{"board": [card("Shotgun")], **changes}))
             self.assertFalse(guide["live"])
-            self.assertIsNone(guide["matched_route_id"])
+            self.assertIsNone(matched(guide))
             self.assertTrue(all(item["owned"] == "未核对" for r in guide["routes"] for item in components(r)))
 
     def test_menu_replay_other_hero_and_unknown_state_never_claim_ownership(self):
@@ -289,11 +326,11 @@ class ReferenceTests(unittest.TestCase):
     def test_combat_can_browse_and_a_reserve_never_matches_a_route(self):
         self.assertTrue(self.book.reference(state(in_combat=True, state_type="UnfamiliarCombatState"))["live"])
         guide = self.book.reference(state(stash=[card("Shotgun"), card("Tent")]))
-        self.assertIsNone(guide["matched_route_id"])
+        self.assertIsNone(matched(guide))
         self.assertEqual(route(guide, "ammo")["core_count"], 0)
 
     def test_generic_transition_card_never_locks_a_build_and_order_never_changes(self):
-        self.assertIsNone(self.book.reference(state([card("Spear")]))["matched_route_id"])
+        self.assertIsNone(matched(self.book.reference(state([card("Spear")]))))
         expected = [r["id"] for r in self.book.reference({})["routes"]]
         self.assertEqual([r["id"] for r in self.book.reference(state([card("Shotgun")]))["routes"]], expected)
 
@@ -304,7 +341,7 @@ class ReferenceTests(unittest.TestCase):
         self.book.catalog.cards[blade["Id"]] = blade
         book = StrategyBook(self.book.catalog, self.book.data)
         guide = book.reference(state([card(blade["Id"])]))
-        self.assertIsNone(guide["matched_route_id"])
+        self.assertIsNone(matched(guide))
         self.assertEqual(route(guide, "health")["core_count"], 0)
         self.assertNotIn("Lost Blade", next(r for r in book.data["routes"] if r["id"] == "health")["anchors"])
         self.assertTrue(all(item["template_id"] != blade["Id"] for item in components(route(guide, "health"))))
@@ -332,14 +369,14 @@ class ReferenceTests(unittest.TestCase):
         self.book.catalog.cards["Tent"]["Size"] = "Large"
         updated = StrategyBook(self.book.catalog, self.book.data)
         self.assertFalse(updated.verified)
-        self.assertEqual(len(updated.reference({})["routes"]), 7)
+        self.assertEqual(len(updated.reference({})["routes"]), 12)
         self.assertIn("请核对", updated.reference({})["version_note"])
 
     def test_reference_is_pure_and_observation_identity_is_authoritative(self):
         snapshot = state([{"template_id": "unrelated", "name": "Shotgun"}])
         before = copy.deepcopy(snapshot)
         guide = self.book.reference(snapshot)
-        self.assertIsNone(guide["matched_route_id"])
+        self.assertIsNone(matched(guide))
         self.assertEqual(snapshot, before)
 
     def test_freshness_catalog_error_and_new_run_invalidate_all_dynamic_facts(self):
@@ -352,7 +389,7 @@ class ReferenceTests(unittest.TestCase):
             self.assertFalse(doc["reference"]["live"])
             self.assertTrue(all(item["owned"] == "未核对" for item in components(route(doc["reference"], "ammo"))))
         new_run = make_document(self.book, state(snapshot_id="new-run"))
-        self.assertIsNone(new_run["reference"]["matched_route_id"])
+        self.assertIsNone(matched(new_run["reference"]))
         self.assertNotIn("recommendations", new_run)
 
 
@@ -454,7 +491,7 @@ class WorkerTests(unittest.TestCase):
             self.assertFalse(thread.is_alive())
             document = read_json(runtime / "guide.json")
             self.assertEqual(document["status"], "catalog_error")
-            self.assertEqual(len(document["reference"]["routes"]), 7)
+            self.assertEqual(len(document["reference"]["routes"]), 12)
             self.assertFalse(document["reference"]["live"])
 
 
@@ -469,7 +506,8 @@ class InstalledCatalogTests(unittest.TestCase):
             self.assertEqual(book.item("Waterskin")["tags"], ["食物"])
             self.assertEqual(book.item("Hunter's Pack")["tags"], ["服饰"])
         self.assertEqual(book.item("Toxic Sigil")["tags"], [])
-        self.assertLessEqual(len({template["ArtKey"] for template in book.templates.values()}), 64)
+        capacity = int(re.search(r"const int Capacity = (\d+)", (ROOT / "src/CardArtCache.cs").read_text(encoding="utf-8")).group(1))
+        self.assertLessEqual(len({template["ArtKey"] for template in book.templates.values()}), capacity)
         for result in book.reference({})["routes"]:
             self.assertTrue(result["sources"])
             for stage in result["stages"]:

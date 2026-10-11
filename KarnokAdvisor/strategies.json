@@ -1,7 +1,7 @@
 {
-  "reviewed_at": "2026-10-11",
+  "reviewed_at": "2026-10-12",
   "reviewed_patch": "19.0",
-  "verified_catalog_digest": "aeb7518f5b046797318a963b01ffb306383e7e0a116bfe76e3cd800ed71e926b",
+  "verified_catalog_digest": "be7ab1b0d9ec7984aea473b82bfe105587bad9ddcca01fd9db8ca37b6f81f94b",
   "stage_note": "D1–3 / D4–7 / D8+ 是规划分段，不是卡牌出现日。基础组件是一种参考搭配；可选组件按需择取，不要求全部同时上场。",
   "sources": [
     {
@@ -51,6 +51,12 @@
       "title": "Kripp · 灼烧攻略",
       "date": "2026-03-12",
       "url": "https://mobalytics.gg/the-bazaar/builds/burn-karnok-kripp"
+    },
+    {
+      "id": "karst",
+      "title": "Kripp · 喀斯特暴怒攻略（历史体系）",
+      "date": "2026-03-16",
+      "url": "https://mobalytics.gg/the-bazaar/builds/karst-enrage-karnok-kripp"
     }
   ],
   "routes": [
@@ -63,7 +69,9 @@
       ],
       "sources": [
         "meta18",
-        "health"
+        "health",
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -287,7 +295,15 @@
       ],
       "pivot": "拥有恐兽或羽翼符印才视为这条路线的信号；单独一张长矛不锁定流派。",
       "caution": "恐兽的吸血与冷却收益依赖暴怒。飞行、加速也需要实际触发，不等于已形成循环。",
-      "skills": "优先核对伙伴加速、飞行充能、怒火启动；暴怒延长或缩短按现有触发链决定。"
+      "skills": "优先核对伙伴加速、飞行充能、怒火启动；暴怒延长或缩短按现有触发链决定。",
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。",
+        "s18": "S18攻略收录 · 卡面与占格仍使用本机当前版本。"
+      }
     },
     {
       "id": "boa",
@@ -298,7 +314,9 @@
       ],
       "sources": [
         "community",
-        "selfslow"
+        "selfslow",
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -502,6 +520,16 @@
               "replaces": [],
               "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
               "fills_gap_after": []
+            },
+            {
+              "name": "Dual Reaver",
+              "use": "主力替代 · 需加速中继",
+              "note": "替换蟒蛇后，掠夺双刃靠己方加速触发成长；需保留夜视的减速→加速中继。",
+              "replaces": [
+                "Boa Constrictor"
+              ],
+              "position_note": "贴猎人靴；夜视移到靴另一侧，不能让三张同时直接邻接双刃。",
+              "fills_gap_after": []
             }
           ],
           "plan": "核对减速是否命中蚺蛇、伤害是否成长，再按剩余格子补治疗或控制。",
@@ -527,7 +555,13 @@
       ],
       "pivot": "蚺蛇与锁链互相补齐时才加大投入；只有减速、没有成长或输出时保留转型空间。",
       "caution": "Radiant（辉耀）免疫减速，可能切断自减速链；缺续航时不能只堆触发速度。",
-      "skills": "伤害成长、减速触发、暴击和充能；不要仅因名字含减速就购买。"
+      "skills": "伤害成长、减速触发、暴击和充能；不要仅因名字含减速就购买。",
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。"
+      }
     },
     {
       "id": "ammo",
@@ -538,7 +572,9 @@
         "Heavy Crossbow"
       ],
       "sources": [
-        "selfslow"
+        "selfslow",
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -760,6 +796,16 @@
               "replaces": [],
               "position_note": "本体位置不限；己方施加减控的来源仍须实际命中目标，并预留三格空间。",
               "fills_gap_after": []
+            },
+            {
+              "name": "Giant Sling",
+              "use": "主力替代 · 需装填",
+              "note": "替换霰弹枪；暴怒五倍伤害依赖实际暴怒，四发基础弹药仍需帐篷装填。",
+              "replaces": [
+                "Shotgun"
+              ],
+              "position_note": "取代霰弹枪，左侧帐篷、右侧猎人靴；夜视继续贴靴。",
+              "fills_gap_after": []
             }
           ],
           "plan": "每次换主力或装填都重查摆位；弹药、减速和装填必须同时成立。",
@@ -791,7 +837,13 @@
       ],
       "pivot": "已持有弹药输出和可用装填时继续；装填一直不齐则不要只追多重释放。",
       "caution": "旧攻略的工具腰带机制已变化，按本机卡面处理。帐篷、减速源和弹药武器同时在场也未必摆位正确。",
-      "skills": "装填、弹药与伤害成长；购买技能前仍需核对实际作用目标。"
+      "skills": "装填、弹药与伤害成长；购买技能前仍需核对实际作用目标。",
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核 · 武器羁绊作用于最左武器；取得技能后才成为伙伴。"
+      }
     },
     {
       "id": "poison",
@@ -804,7 +856,8 @@
       "sources": [
         "poison",
         "meta18",
-        "patch19"
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -1060,18 +1113,26 @@
       ],
       "pivot": "先保留能打赢的毒组件，拿到陷阱藤后再比较完整替换收益。",
       "caution": "19.0 陷阱藤为黄金起步，减速触发的是充能；旧版直接叠毒说明已弃用。",
-      "skills": "剧毒成长、减速控制与续航；不要把未到手的符印算成当前成长。"
+      "skills": "剧毒成长、减速控制与续航；不要把未到手的符印算成当前成长。",
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。",
+        "s18": "S18攻略收录 · 卡面与占格仍使用本机当前版本。"
+      }
     },
     {
       "id": "health",
-      "name": "生命 · 武器成长",
+      "name": "阔剑 · 生命成长",
       "anchors": [
-        "Runic Claymore",
-        "Wild Bear"
+        "Runic Claymore"
       ],
       "sources": [
         "health",
-        "patch19"
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -1319,7 +1380,13 @@
       ],
       "pivot": "以实际持有生命武器为信号，再补充生命、暴击与出手频率；未拿到武器时先保持当前战力。",
       "caution": "失落之刃另走单主动物品路线，不能把其他有冷却的物品照搬进去；阔剑示例不适用于它。",
-      "skills": "最大生命、暴击、主力加速或保护；怒火投资按武器的实际需求决定。"
+      "skills": "最大生命、暴击、主力加速或保护；怒火投资按武器的实际需求决定。",
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。"
+      }
     },
     {
       "id": "aurora",
@@ -1329,7 +1396,8 @@
       ],
       "sources": [
         "meta18",
-        "patch19"
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -1549,7 +1617,15 @@
       ],
       "pivot": "没有极光之景时只算防御过渡，有核心后再检查治疗与暴击组件。",
       "caution": "防御组合也可能被爆发或成长压过。19.0 雪魂精灵为黄金起步，不把它当开局必备牌。",
-      "skills": "治疗触发、暴击与怒火启动；保命和控制按当前短板取舍。"
+      "skills": "治疗触发、暴击与怒火启动；保命和控制按当前短板取舍。",
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核 · 医者精准可补暴击；技能需实际获得。",
+        "s18": "S18攻略收录 · 卡面与占格仍使用本机当前版本。"
+      }
     },
     {
       "id": "burn",
@@ -1562,7 +1638,8 @@
       ],
       "sources": [
         "burn",
-        "patch19"
+        "patch19",
+        "patch19mirror"
       ],
       "roles": [
         {
@@ -1792,7 +1869,1353 @@
       ],
       "pivot": "有成套灼烧和成长则继续；只有开局灼烧牌时不为旧攻略强行锁定终局。",
       "caution": "间歇泉已重做，旧攻略的自动出手模型不适用；需要治疗与暴怒来源。",
-      "skills": "灼烧成长、治疗触发、充能；优先改善当前能发挥的组件。"
+      "skills": "灼烧成长、治疗触发、充能；优先改善当前能发挥的组件。",
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。"
+      }
+    },
+    {
+      "id": "wild_bear",
+      "name": "野熊 · 生命伙伴",
+      "anchors": [
+        "Wild Bear"
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Hunter's Journal"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补武器输出和伙伴加速，不把猎刀当作怒火来源。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "加速非飞行目标",
+              "note": "加速非飞行物品并使其飞行，已有飞行时注意目标变化。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；与实际怒火来源搭配。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "补当前武器伤害成长，生命武器到手前仍由过渡武器承担输出。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": [],
+              "position_note": "紧贴长矛；有两把输出武器时可夹在两者中间，让它同时邻接两把武器。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "长矛负责输出，日志可在生命武器到手后继续使用。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴长矛左侧，日志放外侧即可。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Wild Bear",
+            "Wing Sigil",
+            "Hunter's Journal"
+          ],
+          "core_items": [
+            "Wild Bear",
+            "Wing Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Forest Cloak",
+              "use": "补生命与减伤",
+              "note": "补最大生命；暴怒期间减伤，需要已有可靠暴怒启动。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hidden Lake",
+              "use": "生命与半血邻接",
+              "note": "金币和场面允许再转入；半血以下才给邻居缩冷却。",
+              "replaces": [],
+              "position_note": "贴野熊另一侧；不要插进飞鼠与野熊之间。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "补伙伴加速",
+              "note": "随机加速伙伴及其邻接；增加伙伴会分流目标。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "武器出手产怒",
+              "note": "相邻武器出手产怒；补充已有羽翼符印的怒火。",
+              "replaces": [],
+              "position_note": "紧贴野熊右侧，飞鼠保持在野熊左侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Knife",
+              "use": "过渡与经济",
+              "note": "补武器和伙伴加速；打怪可获取兽皮。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "野熊到手后才转生命伙伴；飞鼠加速配羽翼符印产怒，暴怒带来生命成长。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Wild Bear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴野熊左侧，羽翼符印放外围。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Flying Squirrel",
+            "Wild Bear",
+            "Hidden Lake",
+            "Wing Sigil",
+            "Hunter's Journal"
+          ],
+          "core_items": [
+            "Wild Bear",
+            "Hidden Lake",
+            "Wing Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Forest Cloak",
+              "use": "生命与减伤",
+              "note": "替代羽翼符印会失去该怒火来源；需先有其他可靠怒火。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "加快伙伴输出",
+              "note": "补随机伙伴及邻接加速；本体没有固定邻接限制。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Snowshoes",
+              "use": "邻接抗冻结",
+              "note": "只有直接邻居受保护；保护野熊需挪开飞鼠或隐秘之湖。",
+              "replaces": [],
+              "position_note": "紧贴野熊，明确取舍飞鼠加速或半血之湖的邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runic Claymore",
+              "use": "生命主力替代",
+              "note": "替换野熊后失去其伙伴与暴怒生命成长；重新选择怒火和频率支持。",
+              "replaces": [
+                "Wild Bear"
+              ],
+              "position_note": "取代野熊原位，左侧紧贴飞鼠，右侧紧贴隐秘之湖。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能",
+              "note": "先让野熊实际飞行，再利用飞行充能；不要把被动支持当作出手引擎。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "围绕野熊积累生命，保留怒火、频率与抗控。隐秘之湖的缩冷却只在半血以下生效。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Wild Bear",
+                "kind": "immediate_left",
+                "note": "飞鼠在野熊左侧。"
+              },
+              {
+                "source": "Wild Bear",
+                "target": "Hidden Lake",
+                "kind": "adjacent",
+                "note": "隐秘之湖紧贴野熊；半血以下才缩冷却。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        }
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Wild Bear"
+          ]
+        },
+        {
+          "name": "怒火",
+          "items": [
+            "Wing Sigil",
+            "Beast Tooth"
+          ]
+        },
+        {
+          "name": "生命",
+          "items": [
+            "Hidden Lake",
+            "Forest Cloak",
+            "Hunter's Journal"
+          ]
+        },
+        {
+          "name": "频率",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call"
+          ]
+        }
+      ],
+      "pivot": "伙伴开局转野熊；生命和暴怒启动准备好再换主力。",
+      "caution": "野熊成长需要进入暴怒；只有生命支持却没有输出频率时容易拖入后期。",
+      "skills": "优先可靠启动与抗控；S19医者精准需实际治疗/回复才提供战斗内暴击。",
+      "sources": [
+        "health",
+        "patch19",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核衍生 · 从生命体系独立出野熊主力。"
+      }
+    },
+    {
+      "id": "karst",
+      "name": "喀斯特 · 暴怒护盾",
+      "anchors": [
+        "Karst"
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Hunting Hawk"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补过渡武器输出并加速伙伴；打怪可获得兽皮，不把猎刀当作怒火来源。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；已有稳定怒火来源时补输出。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": [],
+              "position_note": "紧贴长矛；有两把输出武器时可夹在两者中间，让它同时邻接两把武器。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "有稳定武器输出时补战斗内伤害成长；不能替代主力武器。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "长矛负责前期输出；这些是过渡组件，不锁定终局路线。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴长矛左侧，定向加速并使长矛飞行。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Karst",
+            "Flying Squirrel",
+            "Hunting Hawk",
+            "Beast Call"
+          ],
+          "core_items": [
+            "Karst",
+            "Hunting Hawk"
+          ],
+          "optional_items": [
+            {
+              "name": "Wing Sigil",
+              "use": "加速产怒",
+              "note": "已有持续加速后补怒火；符印本体被动不算主动引擎。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器成长",
+              "note": "给猎鹰等实际武器提供成长，不替代输出主力。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒控制",
+              "note": "补治疗与冻结；每次进入暴怒增加冻结目标，本体需另有频率支持。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Outlands Terror",
+              "use": "主力过渡",
+              "note": "替代猎鹰并重排；需保留朋友/非武器出手支持喀斯特。",
+              "replaces": [
+                "Hunting Hawk"
+              ],
+              "position_note": "紧贴飞鼠右侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗与充能",
+              "note": "为左邻主动牌充能，不能充能被动喀斯特。",
+              "replaces": [],
+              "position_note": "贴猎鹰右侧，兽笛外移。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "喀斯特依靠伙伴或非武器出手产怒与护盾；普通非伙伴武器不会触发。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Hunting Hawk",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴猎鹰左侧；喀斯特本体无需邻接。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Karst",
+            "Flying Squirrel",
+            "Outlands Terror",
+            "Beast Call",
+            "Wing Sigil"
+          ],
+          "core_items": [
+            "Karst",
+            "Outlands Terror"
+          ],
+          "optional_items": [
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒冻结",
+              "note": "替换兽笛会减少加速支持；保留飞鼠的定向频率。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "暴怒充能",
+              "note": "换掉兽笛后补全场充能；自减速会拖慢邻接主动牌。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "放在羽翼符印外侧，避开恐兽。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Anaconda",
+              "use": "怒火武器替代",
+              "note": "以怒火累计与反复暴怒成长，启动速度需要另行核对。",
+              "replaces": [
+                "Outlands Terror"
+              ],
+              "position_note": "紧贴飞鼠右侧；喀斯特与兽笛保留。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Forest Cloak",
+              "use": "生存替代",
+              "note": "替换羽翼符印后仍需喀斯特的实际出手引擎产怒。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "补治疗充能",
+              "note": "替换兽笛后为恐兽充能；不能充能喀斯特或羽翼符印。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "紧贴恐兽右侧。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "用快速伙伴反复触发喀斯特，靠恐兽输出；喀斯特缩短暴怒，收益偏向反复进入暴怒。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Outlands Terror",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴恐兽左侧，兽笛可在恐兽右侧。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        }
+      ],
+      "roles": [
+        {
+          "name": "引擎",
+          "items": [
+            "Karst",
+            "Beast Call"
+          ]
+        },
+        {
+          "name": "主力",
+          "items": [
+            "Outlands Terror",
+            "Hunting Hawk"
+          ]
+        },
+        {
+          "name": "频率",
+          "items": [
+            "Flying Squirrel",
+            "Wing Sigil"
+          ]
+        }
+      ],
+      "pivot": "先有能打的伙伴开局，再用喀斯特把出手转成怒火和护盾。",
+      "caution": "喀斯特不是输出牌；缺少主动伙伴或非武器时，怒火/护盾链条无法启动。",
+      "skills": "按实际怒火周期选缩短暴怒；S19爆发之怒改为战斗开始给怒火，仍不能单独保证反复暴怒。",
+      "sources": [
+        "karst",
+        "patch19",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核衍生 · 历史喀斯特体系，按当前触发条件整理。"
+      }
+    },
+    {
+      "id": "anaconda",
+      "name": "森蚺 · 怒火多重",
+      "anchors": [
+        "Anaconda"
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Hunting Hawk"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补过渡武器输出并加速伙伴；打怪可获得兽皮，不把猎刀当作怒火来源。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；已有稳定怒火来源时补输出。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": [],
+              "position_note": "紧贴长矛；有两把输出武器时可夹在两者中间，让它同时邻接两把武器。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "有稳定武器输出时补战斗内伤害成长；不能替代主力武器。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "长矛负责前期输出；这些是过渡组件，不锁定终局路线。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴长矛左侧，定向加速并使长矛飞行。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Outlands Terror",
+            "Wing Sigil"
+          ],
+          "core_items": [
+            "Outlands Terror",
+            "Wing Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Hawk",
+              "use": "加速非飞行目标",
+              "note": "加速非飞行物品并使其飞行；目标已在飞行时不能当作稳定定向加速。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "伙伴及邻接加速",
+              "note": "加速一名伙伴及其相邻物品，配羽翼符印获得怒火；需安排实际伙伴和邻接目标。",
+              "replaces": [],
+              "position_note": "兽笛本体位置不限；希望间接加速的物品要贴被选中的伙伴。新增伙伴会改变随机目标。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Wolf",
+              "use": "暴怒时加速伙伴",
+              "note": "进入暴怒时加速伙伴，加速伙伴又能成长；需有怒火启动和伙伴目标。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能与加速",
+              "note": "加速并为其他飞行物品充能；先有实际飞行目标，再配合羽翼符印。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补伙伴加速与武器输出；怒火仍需羽翼符印等实际来源。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Anaconda",
+              "use": "后续主力",
+              "note": "替换恐兽后靠累计怒火成长；仍需实际怒火与频率支持。",
+              "replaces": [
+                "Outlands Terror"
+              ],
+              "position_note": "紧贴飞鼠右侧。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "用恐兽与飞行怒火包过渡；森蚺从金起步，拿到后再评估转型，不预设出现日。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Outlands Terror",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴恐兽左侧；羽翼符印可放外侧。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Karst",
+            "Flying Squirrel",
+            "Anaconda",
+            "Beast Call",
+            "Wing Sigil"
+          ],
+          "core_items": [
+            "Anaconda",
+            "Karst"
+          ],
+          "optional_items": [
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒控制",
+              "note": "替换兽笛后保留飞鼠频率，靠反复暴怒带动冻结。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "怒火替代",
+              "note": "替换羽翼符印，靠相邻森蚺出手产怒；需核对启动速度。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "紧贴森蚺右侧，兽笛外移。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "暴怒充能",
+              "note": "进入暴怒才提供全场充能；不要减速森蚺主力。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "放在羽翼符印外侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Forest Cloak",
+              "use": "抗伤替代",
+              "note": "替换羽翼符印会失去加速产怒，喀斯特链条必须已稳定。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Outlands Terror",
+              "use": "更快输出替代",
+              "note": "场面撑不住森蚺启动时换主力；不把它们两张都强塞入。",
+              "replaces": [
+                "Anaconda"
+              ],
+              "position_note": "替换到飞鼠右侧。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "森蚺按本场实际获得的怒火成长伤害，每次进入暴怒加多重；先解决启动，再追求叠层。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Anaconda",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴森蚺左侧；喀斯特无需邻接。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        }
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Anaconda"
+          ]
+        },
+        {
+          "name": "怒火",
+          "items": [
+            "Karst",
+            "Wing Sigil",
+            "Beast Tooth"
+          ]
+        },
+        {
+          "name": "频率",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call"
+          ]
+        }
+      ],
+      "pivot": "沿用伙伴怒火开局，金品质森蚺到手后再转。",
+      "caution": "启动慢时不要只为多重上限拆掉当前能赢的输出；需要抗控和实际怒火增量。",
+      "skills": "优先战斗开始怒火与频率；缩怒与延怒按当前引擎实际周期取舍。",
+      "sources": [
+        "karst",
+        "selfslow",
+        "patch19",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19机制复核衍生 · 森蚺累计怒火与反复暴怒路线。"
+      }
+    },
+    {
+      "id": "hydra",
+      "name": "九头树 · 多重伙伴",
+      "anchors": [
+        "Hydra Tree"
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Hunting Hawk"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补过渡武器输出并加速伙伴；打怪可获得兽皮，不把猎刀当作怒火来源。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；已有稳定怒火来源时补输出。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": [],
+              "position_note": "紧贴长矛；有两把输出武器时可夹在两者中间，让它同时邻接两把武器。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "有稳定武器输出时补战斗内伤害成长；不能替代主力武器。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "长矛负责前期输出；这些是过渡组件，不锁定终局路线。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴长矛左侧，定向加速并使长矛飞行。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Karst",
+            "Flying Squirrel",
+            "Hunting Hawk",
+            "Beast Call"
+          ],
+          "core_items": [
+            "Karst",
+            "Hunting Hawk"
+          ],
+          "optional_items": [
+            {
+              "name": "Wing Sigil",
+              "use": "加速产怒",
+              "note": "已有持续加速后补怒火；符印本体被动不算主动引擎。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器成长",
+              "note": "给猎鹰等实际武器提供成长，不替代输出主力。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒控制",
+              "note": "补治疗与冻结；每次进入暴怒增加冻结目标，本体需另有频率支持。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Outlands Terror",
+              "use": "主力过渡",
+              "note": "替代猎鹰并重排；需保留朋友/非武器出手支持喀斯特。",
+              "replaces": [
+                "Hunting Hawk"
+              ],
+              "position_note": "紧贴飞鼠右侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗与充能",
+              "note": "为左邻主动牌充能，不能充能被动喀斯特。",
+              "replaces": [],
+              "position_note": "贴猎鹰右侧，兽笛外移。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "喀斯特与猎鹰过渡；九头蛇树钻石起步，前中期不依赖它，也不强行等待。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Hunting Hawk",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴猎鹰左侧；喀斯特本体无需邻接。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Karst",
+            "Hydra Tree",
+            "Flying Squirrel",
+            "Outlands Terror",
+            "Beast Call"
+          ],
+          "core_items": [
+            "Hydra Tree",
+            "Karst",
+            "Outlands Terror"
+          ],
+          "optional_items": [
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒冻结",
+              "note": "替换兽笛后以飞鼠维持恐兽频率；九头树也能增加主动雪灵的多重。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "伙伴频率替代",
+              "note": "换掉飞鼠和兽笛后失去定向加速；猎鹰只加速非飞行目标。",
+              "replaces": [
+                "Flying Squirrel",
+                "Beast Call"
+              ],
+              "position_note": "可放恐兽外侧；别把被动九头树当充能目标。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "全场充能",
+              "note": "替换兽笛后提供暴怒充能，需要先解决怒火启动。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "放九头树外侧，避开恐兽的自减速。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Forest Cloak",
+              "use": "保命替代",
+              "note": "仅在九头树没到手或生存不足时替代；会失去暴怒多重。",
+              "replaces": [
+                "Hydra Tree"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "定向充能",
+              "note": "替换兽笛后给恐兽充能，九头树是被动牌。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "紧贴恐兽右侧，九头树移到外侧。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "九头蛇树降低暴怒门槛，暴怒期间给主动牌加多重；喀斯特供怒，恐兽承担输出。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Outlands Terror",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴恐兽左侧。"
+              },
+              {
+                "source": "Outlands Terror",
+                "target": "Beast Call",
+                "kind": "adjacent",
+                "note": "兽笛可贴恐兽右侧；随机选择伙伴不能保证每次命中恐兽。"
+              }
+            ],
+            "note": "九头树放外围，本体无主动冷却；随机加速可能选中被动伙伴，主力频率由飞鼠保证。多重只对主动牌生效，且仅限暴怒期间。",
+            "gaps_after": {}
+          }
+        }
+      ],
+      "roles": [
+        {
+          "name": "核心",
+          "items": [
+            "Hydra Tree"
+          ]
+        },
+        {
+          "name": "怒火",
+          "items": [
+            "Karst"
+          ]
+        },
+        {
+          "name": "输出",
+          "items": [
+            "Outlands Terror"
+          ]
+        },
+        {
+          "name": "频率",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call"
+          ]
+        }
+      ],
+      "pivot": "伙伴/喀斯特过渡，钻石九头树到手且启动可靠后再组。",
+      "caution": "九头树本体被动，不会出手、不能充能；喀斯特会缩短暴怒，多重只在这段时间生效。",
+      "skills": "优先实际怒火启动；延长暴怒能增加多重窗口，但需与反复暴怒触发收益取舍。",
+      "sources": [
+        "patch19",
+        "patch19mirror",
+        "karst"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19新物品 · 当前机制搭配参考；非已验证强度榜。"
+      }
+    },
+    {
+      "id": "flamespitter",
+      "name": "喷焰蛙 · 毒火联动",
+      "anchors": [
+        "Flamespitter Frog"
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Worry Wart",
+            "Black Mamba"
+          ],
+          "core_items": [
+            "Black Mamba",
+            "Worry Wart"
+          ],
+          "optional_items": [
+            {
+              "name": "Lichen",
+              "use": "补毒系被动增益",
+              "note": "补已有毒组件的被动增益，不能用它替代全部主动毒输出；具体属性以本机卡面为准。",
+              "replaces": [],
+              "position_note": "被动苔藓可填疣蛙与黑曼巴之间的隔离位；保持曼巴不是疣蛙直接邻居。",
+              "fills_gap_after": [
+                "Worry Wart"
+              ]
+            },
+            {
+              "name": "Drowsdrop",
+              "use": "毒减速 · 己方减速装填",
+              "note": "自带剧毒与减速，但有弹药；己方物品减速它时才装填，不能把敌方减速当作装填资源。",
+              "replaces": [],
+              "position_note": "填入疣蛙与黑曼巴之间的隔离位，承接疣蛙的己方减速以装填；曼巴不再直接贴疣蛙。",
+              "fills_gap_after": [
+                "Worry Wart"
+              ]
+            },
+            {
+              "name": "Security Blanket",
+              "use": "防御 · 需受减控",
+              "note": "给自身安排减速或冻结触发，补治疗、护盾与怒火。",
+              "replaces": [],
+              "position_note": "填入疣蛙隔离位，承接自减速以获得怒火；疣蛙另一侧不要贴曼巴或蝙蝠。",
+              "fills_gap_after": [
+                "Worry Wart"
+              ]
+            },
+            {
+              "name": "Dryad",
+              "use": "补治疗",
+              "note": "需要存活时间让毒生效时补治疗，别挤掉所有主动毒输出。",
+              "replaces": [],
+              "position_note": "本体没有固定邻接要求，优先放在空余位置，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "左邻需有冷却的主动物品，兼顾治疗和触发频率。",
+              "replaces": [],
+              "position_note": "紧贴黑曼巴右侧；疣蛙与曼巴之间仍保留隔离位。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先保留能打的黑曼巴与忧虑疣蛙，不在前期强求黄金起步的陷阱藤。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Worry Wart",
+                "target": "Black Mamba",
+                "kind": "separated",
+                "note": "疣蛙与黑曼巴间空一格，避免无收益的自减速拖慢曼巴。"
+              }
+            ],
+            "note": "",
+            "gaps_after": {
+              "Worry Wart": 1
+            }
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Black Mamba",
+            "Toxic Sigil",
+            "Dryad",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Black Mamba",
+            "Toxic Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Flamespitter Frog",
+              "use": "后续毒火主力",
+              "note": "金品质起步；拿到后加入并把飞鼠改为贴它。",
+              "replaces": [],
+              "position_note": "飞鼠紧贴喷焰蛙左侧，水囊继续贴树精右侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Caustic Solvent",
+              "use": "单次毒成长",
+              "note": "基础弹药有限；只能当一次性成长或配实际装填。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "伙伴加速",
+              "note": "给伙伴与其邻接补加速；随机选择不能保证总命中主力。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "控制",
+              "note": "补治疗与冻结；每次进入暴怒增加冻结目标，本体需另有频率支持。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Forest Cloak",
+              "use": "保命",
+              "note": "已有暴怒启动时补最大生命与暴怒减伤。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先用黑曼巴与剧毒符印过渡；喷焰蛙金起步，没有拿到时按毒系正常推进。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Black Mamba",
+                "kind": "immediate_left",
+                "note": "过渡时飞鼠贴黑曼巴左侧。"
+              },
+              {
+                "source": "Dryad",
+                "target": "Waterskin",
+                "kind": "immediate_left",
+                "note": "水囊紧贴树精右侧。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Flying Squirrel",
+            "Flamespitter Frog",
+            "Black Mamba",
+            "Toxic Sigil",
+            "Dryad",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Flamespitter Frog",
+            "Black Mamba",
+            "Toxic Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Flame Sigil",
+              "use": "灼烧方向替代",
+              "note": "替换剧毒符印后失去其毒成长；靠喷焰蛙灼烧为烈焰符印产怒。",
+              "replaces": [
+                "Toxic Sigil"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Caustic Solvent",
+              "use": "单次毒成长替代",
+              "note": "换黑曼巴后不再有其暴怒成长；溶剂基础弹药有限，须按一次性或装填方案使用。",
+              "replaces": [
+                "Black Mamba"
+              ],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "伙伴加速",
+              "note": "已有定向飞鼠后补随机加速；新增伙伴会改变随机目标。",
+              "replaces": [],
+              "position_note": "本体位置不限；想间接加速喷焰蛙时，让蛙贴一名会被选中的伙伴。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunter's Sled",
+              "use": "补频率",
+              "note": "多重取决于雪橇实际拥有的类型；不能只凭组件数量推算。",
+              "replaces": [],
+              "position_note": "放外围或合适的类型邻居旁，保留飞鼠→喷焰蛙、树精→水囊。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "暴怒控制",
+              "note": "先由实际施毒与符印产怒，再发挥暴怒冻结。",
+              "replaces": [],
+              "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "喷焰蛙的灼烧取自身毒的五倍；先提高其毒与出手频率，再用符印和治疗维持战斗。",
+          "positioning": {
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Flamespitter Frog",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴喷焰蛙左侧，解决10秒基础冷却的频率。"
+              },
+              {
+                "source": "Dryad",
+                "target": "Waterskin",
+                "kind": "immediate_left",
+                "note": "水囊紧贴树精右侧；不要充能被动符印。"
+              }
+            ],
+            "note": "其余组件可放外围；替换后按可选牌提示重排。",
+            "gaps_after": {}
+          }
+        }
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Flamespitter Frog"
+          ]
+        },
+        {
+          "name": "毒成长",
+          "items": [
+            "Black Mamba",
+            "Toxic Sigil",
+            "Caustic Solvent"
+          ]
+        },
+        {
+          "name": "频率",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call"
+          ]
+        },
+        {
+          "name": "续航",
+          "items": [
+            "Dryad",
+            "Waterskin"
+          ]
+        }
+      ],
+      "pivot": "毒系开局过渡，金品质喷焰蛙与频率支持都到手后转毒火。",
+      "caution": "喷焰蛙不产减速、不自行装填；基础冷却较慢，单有毒火上限不足以保证胜利。",
+      "skills": "S19闪点腐蚀/闪点引燃仅在每场前几次使用弹药时触发；本基础无弹药，不默认这些技能已生效。",
+      "sources": [
+        "patch19",
+        "patch19mirror",
+        "poison"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19新物品 · 毒转灼烧机制参考；需要另补频率与怒火。"
+      }
     }
-  ]
+  ],
+  "seasons": [
+    {
+      "id": "s19",
+      "label": "S19"
+    },
+    {
+      "id": "s18",
+      "label": "S18"
+    }
+  ],
+  "default_season": "s19"
 }

@@ -5,13 +5,13 @@ var now = DateTimeOffset.UtcNow;
 JObject Snapshot() => new JObject { ["snapshot_id"] = "current", ["status"] = "live", ["hero"] = "Karnok", ["day"] = 2,
     ["state_type"] = "ChoiceState", ["board"] = new JArray(), ["stash"] = new JArray(), ["unlocked_slots"] = new JArray(0, 1), ["captured_at_utc"] = now.ToString("O") };
 JObject Guide() => new JObject { ["kind"] = ReferenceViewState.DocumentKind, ["status"] = "live", ["snapshot_id"] = "current", ["generated_at_utc"] = now.ToString("O"),
-    ["reference"] = new JObject { ["live"] = true, ["stage"] = "early", ["matched_route_id"] = "ammo", ["routes"] = new JArray(
-        new JObject { ["id"] = "friends", ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }) }, new JObject { ["key"] = "late", ["base_items"] = new JArray() }) },
-        new JObject { ["id"] = "ammo", ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray() }) }) } };
+    ["reference"] = new JObject { ["live"] = true, ["stage"] = "early", ["default_season"] = "s19", ["seasons"] = new JArray(new JObject { ["id"] = "s19" }, new JObject { ["id"] = "s18" }), ["matched_route_ids"] = new JObject { ["s19"] = new JArray("ammo"), ["s18"] = new JArray("friends") }, ["routes"] = new JArray(
+        new JObject { ["id"] = "friends", ["seasons"] = new JArray("s19", "s18"), ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }) }, new JObject { ["key"] = "late", ["base_items"] = new JArray() }) },
+        new JObject { ["id"] = "ammo", ["seasons"] = new JArray("s19", "s18"), ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray() }) }) } };
 var count = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception(name); count++; Console.WriteLine("PASS " + name); }
 Check(ReferenceViewState.IsLive(Guide(), Snapshot(), now), "Fresh matching guide is live");
-foreach (var kind in new[] { "legacy-recommendation", "karnok-build-reference-v2", "" })
+foreach (var kind in new[] { "legacy-recommendation", "karnok-build-reference-v2", "karnok-build-reference-v3", "" })
 {
     var doc = Guide(); doc["kind"] = kind;
     Check(!ReferenceViewState.IsLive(doc, Snapshot(), now), "Old document kind cannot supply ownership");
@@ -79,16 +79,16 @@ components["optional_items"] = new JArray();
 view.Synchronize(optionalReference, true);
 Check(view.CardId == "", "Removing optional identity closes detail");
 var unmatched = (JObject)Guide()["reference"]!;
-unmatched["matched_route_id"] = null;
+unmatched["matched_route_ids"]!["s19"] = new JArray();
 var noCoreView = new ReferenceViewState();
 noCoreView.SelectRoute("ammo"); noCoreView.MatchOwned(); noCoreView.Synchronize(unmatched, true);
 Check(noCoreView.RouteId == "ammo", "No observed core preserves the current route instead of jumping to the first route");
 Check(noCoreView.MatchOwnedLabel(unmatched, true).Contains("等待核心"), "No-match follow state explains why the route did not move");
 Check(noCoreView.MatchOwnedLabel(unmatched, false).Contains("待同步"), "Unavailable ownership does not claim a match");
-unmatched["matched_route_id"] = "not-a-route";
+unmatched["matched_route_ids"]!["s19"] = new JArray("not-a-route");
 noCoreView.Synchronize(unmatched, true);
 Check(noCoreView.RouteId == "ammo", "Unknown matched identity never overwrites a valid browse choice");
-unmatched["matched_route_id"] = "friends";
+unmatched["matched_route_ids"]!["s19"] = new JArray("friends");
 noCoreView.Synchronize(unmatched, true);
 Check(noCoreView.RouteId == "friends", "A real core arriving later resumes automatic matching");
 noCoreView.SelectRoute("ammo");
@@ -105,4 +105,45 @@ positionedStage["base_items"]![0]!["owned"] = "仓库";
 Check((string?)ReferenceViewState.PositionCard(positionedStage, positionBlock)?["owned"] == "仓库", "Position block does not cache previous ownership");
 Check(ReferenceViewState.PositionCard(positionedStage, new JObject { ["kind"] = "gap" }) == null, "An intentional empty slot never resolves as a card");
 Check(ReferenceViewState.PositionCard(positionedStage, new JObject { ["kind"] = "item", ["template_id"] = "missing" }) == null, "Removed position identity is not shown as another component");
+var seasonal = (JObject)Guide()["reference"]!;
+seasonal["routes"]![1]!["seasons"] = new JArray("s19");
+var seasonView = new ReferenceViewState();
+seasonView.Synchronize(seasonal, true);
+Check(seasonView.SeasonId == "s19" && seasonView.Routes(seasonal).Count == 2, "Default season shows current season routes");
+seasonView.SelectSeason("s18"); seasonView.Synchronize(seasonal, true);
+Check(seasonView.RouteId == "friends" && seasonView.Routes(seasonal).Count == 1, "Season filter and ownership match use the same eligible routes");
+seasonView.SelectRoute("friends"); seasonView.SelectStage("late"); seasonView.SelectCard("spear");
+seasonView.SelectSeason("s19"); seasonView.Synchronize(seasonal, true);
+Check(seasonView.RouteId == "friends" && seasonView.StageKey == "late" && seasonView.CardId == "", "Season switch retains manual route and phase but closes stale detail");
+seasonal["matched_route_ids"]!["s19"] = new JArray("ammo", "friends");
+seasonView.MatchOwned(); seasonView.Synchronize(seasonal, true);
+Check(seasonView.RouteId == "friends", "Matching preserves current route when the best candidates tie");
+seasonView.SelectSeason("s18"); seasonal["matched_route_ids"]!["s18"] = new JArray("ammo");
+seasonView.Synchronize(seasonal, true);
+Check(seasonView.RouteId == "friends" && seasonView.MatchOwnedLabel(seasonal, true).Contains("等待核心"), "Foreign-season core never promotes a route or match label");
+Check(seasonView.Route(seasonal)?["id"]?.Value<string>() == "friends", "Detail lookup stays within the selected season");
+var emptySeason = (JObject)seasonal.DeepClone(); emptySeason["routes"] = new JArray();
+seasonView.Synchronize(emptySeason, false);
+Check(seasonView.RouteId == "" && seasonView.Route(emptySeason) == null, "Empty season has no fabricated fallback route");
+seasonView.SelectSeason("unknown"); seasonView.Synchronize(seasonal, false);
+Check(seasonView.SeasonId == "s19", "Unknown season recovers to the declared default");
+foreach (var countCase in new[] { 0, 1, 4, 5, 8, 9, 12 })
+{
+    Check(ReferenceViewState.RouteRows(countCase) == (countCase + 3) / 4, "Wide route grid height for " + countCase);
+    Check(ReferenceViewState.RouteRows(countCase, 420) == (countCase + 2) / 3, "Narrow route grid height for " + countCase);
+}
+Check(ReferenceViewState.RoutesTop(504) == 90 && ReferenceViewState.RoutesTop(420) == 119, "Narrow controls reserve a separate season row");
+var cachedSource = (JObject)Guide()["reference"]!;
+cachedSource["verified"] = true;
+cachedSource["routes"]![0]!["stages"]![0]!["positioning"] = new JObject { ["available"] = true, ["slots"] = 4, ["blocks"] = new JArray() };
+cachedSource["routes"]![0]!["stages"]![0]!["base_items"]![0]!["art_key"] = "keep-art";
+cachedSource["routes"]![0]!["stages"]![0]!["optional_items"] = new JArray(new JObject { ["group"] = "optional", ["result_position_slots"] = 5 });
+var catalogFailure = ReferenceViewState.CachedReference(cachedSource, true);
+var failureStage = catalogFailure["routes"]![0]!["stages"]![0]!;
+Check((bool?)catalogFailure["live"] == false && (bool?)catalogFailure["verified"] == false, "Null-reference catalog failure cannot resurrect cached verification");
+Check((bool?)failureStage["positioning"]!["available"] == false && failureStage["positioning"]!["slots"]!.Type == JTokenType.Null, "Cached catalog failure disables positioning geometry");
+Check(failureStage["optional_items"]![0]!["result_position_slots"]!.Type == JTokenType.Null, "Cached catalog failure clears optional positioning conclusions");
+Check((string?)failureStage["base_items"]![0]!["art_key"] == "keep-art" && (string?)failureStage["base_items"]![0]!["owned"] == "未核对", "Cached catalog failure retains static art and masks ownership");
+Check((bool?)cachedSource["verified"] == true, "Fallback projection does not mutate last-good reference");
+Check((bool?)ReferenceViewState.CachedReference(cachedSource, false)["routes"]![0]!["stages"]![0]!["positioning"]!["available"] == true, "A disconnected readable catalog retains reference positions");
 Console.WriteLine($"{count} reference view checks passed.");

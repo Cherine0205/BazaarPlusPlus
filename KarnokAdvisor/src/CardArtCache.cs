@@ -10,7 +10,7 @@ namespace KarnokAdvisor;
 // Own only the Addressables references acquired here. Materials and textures belong to the game.
 internal sealed class CardArtCache : IDisposable
 {
-    private const int Capacity = 64;
+    private const int Capacity = 128;
     private readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry>(StringComparer.Ordinal);
     private readonly Queue<Entry> _pending = new Queue<Entry>();
     private readonly Action<string> _warn;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
@@ -7,7 +8,8 @@ namespace KarnokAdvisor;
 // View choices are identities, never cached card objects or live ownership conclusions.
 internal sealed class ReferenceViewState
 {
-    internal const string DocumentKind = "karnok-build-reference-v3";
+    internal const string DocumentKind = "karnok-build-reference-v4";
+    internal string SeasonId { get; private set; } = "s19";
     internal string RouteId { get; private set; } = "";
     internal string StageKey { get; private set; } = "early";
     internal string CardId { get; private set; } = "";
@@ -16,10 +18,13 @@ internal sealed class ReferenceViewState
 
     internal void Synchronize(JObject reference, bool live)
     {
-        var routes = reference["routes"] as JArray ?? new JArray();
+        var seasons = reference["seasons"] as JArray ?? new JArray();
+        if (!seasons.Any(s => (string?)s["id"] == SeasonId)) SelectSeason((string?)reference["default_season"] ?? (string?)seasons.First?["id"] ?? "");
+        var routes = Routes(reference);
         var routeId = RouteId;
-        if (FollowOwned && live && HasOwnedMatch(reference)) routeId = (string)reference["matched_route_id"]!;
-        if (!routes.Any(r => (string?)r["id"] == routeId)) routeId = (string?)routes.First?["id"] ?? "";
+        var match = OwnedMatch(reference);
+        if (FollowOwned && live && match != null) routeId = (string)match["id"]!;
+        if (!routes.Any(r => (string?)r["id"] == routeId)) routeId = (string?)routes.FirstOrDefault()?["id"] ?? "";
         var stage = FollowDay && live ? (string?)reference["stage"] ?? StageKey : StageKey;
         if (routeId != RouteId || stage != StageKey) CardId = "";
         RouteId = routeId;
@@ -34,14 +39,49 @@ internal sealed class ReferenceViewState
 
     internal void SelectRoute(string id) { if (id != RouteId) CardId = ""; RouteId = id; FollowOwned = false; }
     internal void SelectStage(string key) { if (key != StageKey) CardId = ""; StageKey = key; FollowDay = false; }
-    private static bool HasOwnedMatch(JObject? reference)
+    internal void SelectSeason(string id) { if (id != SeasonId) CardId = ""; SeasonId = id; }
+    internal IReadOnlyList<JObject> Routes(JObject? reference) => (reference?["routes"] as JArray ?? new JArray()).OfType<JObject>()
+        .Where(route => (route["seasons"] as JArray)?.Values<string>().Contains(SeasonId) == true).ToArray();
+    internal static int RouteColumns(float width) => width >= 480 ? 4 : 3;
+    internal static int RouteRows(int count, float width = 504) => (Math.Max(0, count) + RouteColumns(width) - 1) / RouteColumns(width);
+    internal static float RoutesTop(float width) => width >= 480 ? 90 : 119;
+    internal static JObject CachedReference(JObject reference, bool catalogError)
     {
-        var id = (string?)reference?["matched_route_id"];
-        return !string.IsNullOrEmpty(id) && (reference?["routes"] as JArray)?.Any(route => (string?)route["id"] == id) == true;
+        var cached = (JObject)reference.DeepClone();
+        cached["live"] = false;
+        if (!catalogError) return cached;
+        cached["verified"] = false;
+        cached["version_note"] = "卡牌资料暂不可读，站位与持有暂停核对。";
+        cached["matched_route_ids"] = new JObject();
+        foreach (var route in cached["routes"] as JArray ?? new JArray())
+        {
+            route["core_count"] = 0;
+            route["role_count"] = 0;
+            foreach (var stage in route["stages"] as JArray ?? new JArray())
+            {
+                stage["positioning"] = new JObject { ["available"] = false, ["slots"] = null, ["blocks"] = new JArray(),
+                    ["notes"] = new JArray("站位资料暂不可读，请先核对本机卡面。") };
+                foreach (var card in BaseCards((JObject)stage).Concat(OptionalCards((JObject)stage)))
+                {
+                    card["owned"] = "未核对";
+                    card["owned_tier"] = "";
+                    if ((string?)card["group"] != "optional") continue;
+                    card["result_position_slots"] = null;
+                    card["position_note"] = "站位资料暂不可读，请先核对本机卡面。";
+                }
+            }
+        }
+        return cached;
+    }
+    private JObject? OwnedMatch(JObject? reference)
+    {
+        var ids = (reference?["matched_route_ids"]?[SeasonId] as JArray)?.Values<string>().ToArray() ?? Array.Empty<string>();
+        var matches = Routes(reference).Where(route => ids.Contains((string?)route["id"])).ToArray();
+        return matches.FirstOrDefault(route => (string?)route["id"] == RouteId) ?? matches.FirstOrDefault();
     }
 
     internal string MatchOwnedLabel(JObject? reference, bool live) => !FollowOwned ? "匹配持有"
-        : !live ? "◆ 待同步" : HasOwnedMatch(reference) ? "◆ 匹配持有" : "◆ 等待核心";
+        : !live ? "◆ 待同步" : OwnedMatch(reference) != null ? "◆ 匹配持有" : "◆ 等待核心";
 
     internal static string TagText(JToken card)
     {
@@ -54,7 +94,7 @@ internal sealed class ReferenceViewState
     internal void MatchDay() => FollowDay = true;
     internal void SelectCard(string id) => CardId = id;
     internal void CloseCard() => CardId = "";
-    internal JObject? Route(JObject reference) => (reference["routes"] as JArray)?.OfType<JObject>().FirstOrDefault(r => (string?)r["id"] == RouteId);
+    internal JObject? Route(JObject reference) => Routes(reference).FirstOrDefault(r => (string?)r["id"] == RouteId);
     internal JObject? Stage(JObject route) => (route["stages"] as JArray)?.OfType<JObject>().FirstOrDefault(s => (string?)s["key"] == StageKey);
     internal static JArray BaseCards(JObject stage) => stage["base_items"] as JArray ?? new JArray();
     internal static JArray OptionalCards(JObject stage) => stage["optional_items"] as JArray ?? new JArray();

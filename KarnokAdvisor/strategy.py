@@ -36,10 +36,17 @@ def component_names(route):
 
 
 def validate_components(data):
+    seasons = [season["id"] for season in data["seasons"]]
+    if not seasons or len(set(seasons)) != len(seasons) or data["default_season"] not in seasons:
+        raise ValueError("Seasons need unique identities and a valid default")
     route_ids = [route["id"] for route in data["routes"]]
     if len(set(route_ids)) != len(route_ids):
         raise ValueError("Duplicate route identity")
     for route in data["routes"]:
+        if (not route["seasons"] or len(set(route["seasons"])) != len(route["seasons"])
+                or not set(route["seasons"]) <= set(seasons) or set(route["season_notes"]) != set(route["seasons"])
+                or not all(route["season_notes"].values())):
+            raise ValueError("Routes need supported seasons and an explicit note for each")
         if [stage["key"] for stage in route["stages"]] != [key for key, _ in STAGES]:
             raise ValueError("Route must define early, mid and late stages")
         for stage in route["stages"]:
@@ -175,15 +182,20 @@ class StrategyBook:
                      for role in route["roles"]]
             stages = [self.stage(stage, route, board, stash, catalog_ok=catalog_ok) for stage in route["stages"]]
             core_count = len(self.find(board, route["anchors"]))
-            routes.append({"id": route["id"], "name": route["name"],
+            routes.append({"id": route["id"], "name": route["name"], "seasons": route["seasons"], "season_notes": route["season_notes"],
                            "cover": self.item(route["anchors"][0]), "core_count": core_count,
                            "role_count": sum(any(item["owned"] == "场上" for item in role["items"]) for role in roles),
                            "stages": stages, "pivot": route["pivot"], "caution": route["caution"],
                            "skills": route["skills"], "sources": [self.sources[source] for source in route["sources"]]})
         # Route identity anchors are separate from phase cores such as a shared transition Spear.
-        matched = max(routes, key=lambda route: (route["core_count"], route["role_count"])) if routes else None
+        matches = {}
+        score = lambda route: (route["core_count"], route["role_count"])
+        for season in self.data["seasons"]:
+            eligible = [route for route in routes if season["id"] in route["seasons"] and route["core_count"] > 0]
+            best = max((score(route) for route in eligible), default=None)
+            matches[season["id"]] = [route["id"] for route in eligible if score(route) == best]
         return {"catalog_digest": self.digest, "verified": self.verified and catalog_ok, "live": ready, "stage": stage_key,
-                "matched_route_id": matched["id"] if matched and matched["core_count"] else None,
+                "seasons": self.data["seasons"], "default_season": self.data["default_season"], "matched_route_ids": matches,
                 "unlocked_slots": len(state["unlocked_slots"]) if ready else None,
                 "version_note": "卡牌资料暂不可读，站位与持有暂停核对。" if not catalog_ok else "" if self.verified else "卡牌模板已变化，请核对当前游戏卡面。",
                 "routes": routes}

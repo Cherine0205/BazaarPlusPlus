@@ -170,34 +170,49 @@ internal sealed class AdvisorPanel : IDisposable
         if (GUI.Button(new Rect(Width - 39, 20, 22, 27), "×", _smallButton)) _visible = false;
         if (GUI.Button(new Rect(Padding, 56, 106, 25), _selection.MatchOwnedLabel(_reference, _live), _smallButton)) _selection.MatchOwned();
         if (GUI.Button(new Rect(Padding + 114, 56, 106, 25), (_selection.FollowDay ? "◆ " : "") + "跟随天数", _smallButton)) _selection.MatchDay();
-        if (GUI.Button(new Rect(Width - 110, 56, 90, 25), "F10 同步", _smallButton)) _refresh?.Invoke();
-        var routes = _reference?["routes"] as JArray;
-        if (_reference == null || routes == null || routes.Count == 0)
+        var seasons = _reference?["seasons"] as JArray ?? new JArray();
+        for (var n = 0; n < seasons.Count; n++)
         {
-            Label(new Rect(Padding, 108, Width - Padding * 2, 40), "正在加载阵容资料", _body, Muted);
+            var seasonId = (string?)seasons[n]["id"] ?? "";
+            if (GUI.Button(new Rect(Padding + (Width >= 480 ? 228 : 0) + n * 58, Width >= 480 ? 56 : 84, 52, 25), Value(seasons[n]["label"]),
+                _selection.SeasonId == seasonId ? _selectedButton : _smallButton)) _selection.SelectSeason(seasonId);
+        }
+        if (GUI.Button(new Rect(Width - 110, 56, 90, 25), "F10 同步", _smallButton)) _refresh?.Invoke();
+        if (_reference != null) _selection.Synchronize(_reference, _live);
+        var routes = _selection.Routes(_reference);
+        if (_reference == null || routes.Count == 0)
+        {
+            Label(new Rect(Padding, 108, Width - Padding * 2, 40), _reference == null ? "正在加载阵容资料" : "本赛季暂无阵容资料", _body, Muted);
             Label(new Rect(Padding, 156, Width - Padding * 2, 100), _message, _muted, Amber);
             GUI.DragWindow(new Rect(0, 0, Width - 125, 50));
             return;
         }
-        DrawRoutes(routes);
-        DrawStages();
+        var routesTop = ReferenceViewState.RoutesTop(Width);
+        DrawRoutes(routes, routesTop);
+        var stagesTop = routesTop + ReferenceViewState.RouteRows(routes.Count, Width) * 38 + 4;
+        DrawStages(stagesTop);
         _selection.Synchronize(_reference, _live);
         var route = _selection.Route(_reference);
         var stage = route == null ? null : _selection.Stage(route);
         if (route != null && stage != null)
         {
-            Label(new Rect(Padding, 212, Width - 181, 29), Value(route["name"]), _heading, Gold);
+            var headingTop = stagesTop + 42;
+            Label(new Rect(Padding, headingTop, Width - 181, 29), Value(route["name"]), _heading, Gold);
             var slots = (int?)stage["base_slots"];
             var unlocked = _live ? (int?)_reference["unlocked_slots"] : null;
-            Badge(new Rect(Width - 153, 212, 133, 27), "基础 " + Value(stage["base_slots"]) + " 格" + (unlocked.HasValue ? " / " + unlocked + " 格" : ""),
+            Badge(new Rect(Width - 153, headingTop, 133, 27), "基础 " + Value(stage["base_slots"]) + " 格" + (unlocked.HasValue ? " / " + unlocked + " 格" : ""),
                 slots.HasValue && slots > (unlocked ?? 10) ? Amber : Muted);
-            var top = 250f;
+            var top = headingTop + 38f;
+            var seasonNote = Value(route["season_notes"]?[_selection.SeasonId]);
+            var seasonNoteHeight = TextHeight(_tileMeta, seasonNote, Width - Padding * 2) + 8;
+            Label(new Rect(Padding, top, Width - Padding * 2, seasonNoteHeight), seasonNote, _tileMeta, Muted);
+            top += seasonNoteHeight;
             if ((bool?)_reference["verified"] != true)
             {
                 Label(new Rect(Padding, top, Width - Padding * 2, 23), Value(_reference["version_note"]), _small, Amber);
                 top += 28;
             }
-            var contentId = _selection.RouteId + "/" + _selection.StageKey + "/" + _selection.CardId;
+            var contentId = _selection.SeasonId + "/" + _selection.RouteId + "/" + _selection.StageKey + "/" + _selection.CardId;
             if (_contentId != contentId) { _scroll = Vector2.zero; _contentId = contentId; }
             var viewport = new Rect(Padding, top, Width - Padding * 2, Math.Max(100, _window.height - top - 20));
             var card = _selection.Card(stage);
@@ -218,15 +233,16 @@ internal sealed class AdvisorPanel : IDisposable
         GUI.DragWindow(new Rect(0, 0, Width - 108, 60));
     }
 
-    private void DrawRoutes(JArray routes)
+    private void DrawRoutes(IReadOnlyList<JObject> routes, float top)
     {
         const float gap = 6;
-        var width = (Width - Padding * 2 - gap * 3) / 4;
+        var columns = ReferenceViewState.RouteColumns(Width);
+        var width = (Width - Padding * 2 - gap * (columns - 1)) / columns;
         for (var n = 0; n < routes.Count; n++)
         {
             var route = routes[n];
             var id = (string?)route["id"] ?? "";
-            var rect = new Rect(Padding + n % 4 * (width + gap), 90 + n / 4 * 38, width, 32);
+            var rect = new Rect(Padding + n % columns * (width + gap), top + n / columns * 38, width, 32);
             var style = id == _selection.RouteId ? _selectedButton : _button;
             if (GUI.Button(rect, GUIContent.none, style)) _selection.SelectRoute(id);
             DrawArt(new Rect(rect.x + 4, rect.y + 4, 24, 24), route["cover"]);
@@ -236,14 +252,14 @@ internal sealed class AdvisorPanel : IDisposable
         }
     }
 
-    private void DrawStages()
+    private void DrawStages(float top)
     {
         var keys = new[] { "early", "mid", "late" };
         var labels = new[] { "前期  D1–3", "中期  D4–7", "后期  D8+" };
         var width = (Width - Padding * 2 - 12) / 3;
         for (var n = 0; n < keys.Length; n++)
         {
-            if (GUI.Button(new Rect(Padding + n * (width + 6), 170, width, 30),
+            if (GUI.Button(new Rect(Padding + n * (width + 6), top, width, 30),
                 (_live && (string?)_reference?["stage"] == keys[n] ? "◆ " : "") + labels[n],
                 _selection.StageKey == keys[n] ? _selectedButton : _button)) _selection.SelectStage(keys[n]);
         }
