@@ -23,11 +23,13 @@ from strategy import StrategyBook, stage_for
 
 def fixture_book():
     data = json.loads((ROOT / "strategies.json").read_text(encoding="utf-8"))
-    names = set(n for route in data["routes"] for part in route["roles"] + route["stages"] for n in part["items"])
+    names = set(n for route in data["routes"] for part in route["roles"] for n in part["items"])
     names.update(n for route in data["routes"] for n in route["anchors"])
+    names.update(n for route in data["routes"] for stage in route["stages"] for n in stage["base_items"])
+    names.update(option["name"] for route in data["routes"] for stage in route["stages"] for option in stage["optional_items"])
     cards = [{"Id": name, "Type": "Item", "Size": "Medium" if name == "Shotgun" else "Small",
               "ArtKey": uuid.uuid5(uuid.NAMESPACE_DNS, name).hex, "StartingTier": "Bronze",
-              "Localization": {"Title": {"Text": name}, "Description": {"Text": "造成{ability.0}伤害"}},
+              "Localization": {"Title": {"Text": name}, "Description": {"Text": "造成{ability.0}伤害，获得{aura.1}%"}},
               "Tiers": {"Bronze": {"Attributes": {}}}} for name in sorted(names)]
     catalog = Catalog(cards=cards)
     data["verified_catalog_digest"] = StrategyBook(catalog, data).digest
@@ -46,6 +48,10 @@ def card(name, tier="Bronze"):
 
 def route(reference, name):
     return next(r for r in reference["routes"] if r["id"] == name)
+
+
+def components(route):
+    return [item for stage in route["stages"] for item in stage["base_items"] + stage["optional_items"]]
 
 
 @contextmanager
@@ -70,24 +76,92 @@ class ReferenceTests(unittest.TestCase):
             self.assertNotIn("fit", result)
             self.assertEqual([s["key"] for s in result["stages"]], ["early", "mid", "late"])
             for stage, original in zip(result["stages"], definition["stages"]):
-                for item, name in zip(stage["items"], original["items"]):
+                self.assertNotIn("items", stage)
+                self.assertNotIn("slots", stage)
+                self.assertTrue(stage["optional_items"])
+                for item, name in zip(stage["base_items"], original["base_items"]):
                     self.assertEqual(item["template_id"], name)
-                    self.assertEqual(item["art_key"], self.book.templates[name]["ArtKey"])
-                    self.assertEqual(item["core"], name in definition["anchors"])
+                    self.assertEqual(item["core"], name in original["core_items"])
+                    self.assertEqual(item["group"], "base")
+                for item, option in zip(stage["optional_items"], original["optional_items"]):
+                    self.assertEqual(item["template_id"], option["name"])
+                    self.assertEqual(item["note"], option["note"])
+                    self.assertEqual(item["use"], option["use"])
+                    self.assertFalse(item["core"])
+                    self.assertEqual(item["group"], "optional")
+                for item in stage["base_items"] + stage["optional_items"]:
+                    self.assertEqual(item["art_key"], self.book.templates[item["template_id"]]["ArtKey"])
                     self.assertTrue(item["role"])
                     self.assertEqual(item["owned"], "未核对")
+
+    def test_optional_components_do_not_inflate_base_slots_or_become_phase_cores(self):
+        guide = self.book.reference(state([card("Honey Badger")], stash=[card("Spear")]))
+        friends = route(guide, "friends")["stages"][0]
+        self.assertEqual(friends["base_slots"], sum(item["span"] for item in friends["base_items"]))
+        self.assertTrue(any(item["owned"] == "场上" for item in friends["optional_items"]))
+        self.assertTrue(all(item["owned"] != "场上" for item in friends["base_items"]))
+        self.assertFalse(any(item["core"] for item in friends["optional_items"]))
+        self.assertEqual(friends["base_items"][0]["core_label"], "过渡核心")
+        self.assertIsNone(guide["matched_route_id"])
+
+    def test_replacements_account_for_removed_size_and_can_still_exceed_capacity(self):
+        data = copy.deepcopy(self.book.data)
+        ammo = next(route for route in data["routes"] if route["id"] == "ammo")
+        ammo["stages"][0]["optional_items"][1]["replaces"] = ["Utility Belt"]
+        catalog = copy.deepcopy(self.book.catalog)
+        for name in ("Shotgun", "Utility Belt", "Heavy Crossbow"):
+            catalog.cards[name]["Size"] = "Large"
+        book = StrategyBook(catalog, data)
+        stage = route(book.reference({}), "ammo")["stages"][0]
+        crossbow = next(item for item in stage["optional_items"] if item["template_id"] == "Heavy Crossbow")
+        self.assertEqual(stage["base_slots"], 6)
+        self.assertEqual(crossbow["result_slots"], 6)
+        self.assertEqual(crossbow["replaces"], [{"name": "Utility Belt", "template_id": "Utility Belt"}])
+        self.assertEqual(crossbow["core_label"], "")
+        # A synthetically larger foundation still needs an explicit total, not a promise that replacing fits.
+        ammo["stages"][0]["base_items"] += ["Bear Trap", "Waterskin", "Honey Jar", "Fairies"]
+        ammo["stages"][0]["optional_items"] = [ammo["stages"][0]["optional_items"][1]]
+        ammo["stages"][0]["optional_items"][0]["replaces"] = ["Fairies"]
+        stage = route(StrategyBook(catalog, data).reference({}), "ammo")["stages"][0]
+        self.assertEqual(stage["base_slots"], 10)
+        self.assertEqual(stage["optional_items"][0]["result_slots"], 12)
+        self.assertFalse(stage["optional_items"][0]["core"])
+
+    def test_phase_core_alternative_is_labelled_without_changing_route_identity(self):
+        stage = route(self.book.reference(state([card("Heavy Crossbow")])), "ammo")["stages"][0]
+        crossbow = next(item for item in stage["optional_items"] if item["template_id"] == "Heavy Crossbow")
+        self.assertEqual(crossbow["core_label"], "核心替代")
+        self.assertFalse(crossbow["core"])
+        self.assertEqual(crossbow["result_slots"], stage["base_slots"] - 2 + 1)
+
+    def test_invalid_component_definitions_fail_instead_of_double_counting(self):
+        for change in (lambda stage: stage["base_items"].append(stage["base_items"][0]),
+                       lambda stage: stage["core_items"].append("Not a base card"),
+                       lambda stage: stage["optional_items"].append(copy.deepcopy(stage["optional_items"][0])),
+                       lambda stage: stage["optional_items"][0].update(name=stage["base_items"][0]),
+                       lambda stage: stage["optional_items"][0].update(replaces=["Not a base card"]),
+                       lambda stage: stage["optional_items"][0].update(note="")):
+            data = copy.deepcopy(self.book.data)
+            change(data["routes"][0]["stages"][0])
+            with self.assertRaises(ValueError): StrategyBook(self.book.catalog, data)
+
+    def test_digest_changes_with_art_identity_but_not_inventory(self):
+        original = self.book.reference({})["catalog_digest"]
+        self.assertEqual(original, self.book.reference(state([card("Shotgun")]))["catalog_digest"])
+        self.book.catalog.cards["Shotgun"]["ArtKey"] = uuid.uuid4().hex
+        self.assertNotEqual(original, StrategyBook(self.book.catalog, self.book.data).digest)
 
     def test_owned_and_stash_are_distinct_and_current_tier_is_separate(self):
         reference = self.book.reference(state([card("Shotgun", "Gold")], stash=[card("Tent", "Silver")]))
         ammo = route(reference, "ammo")
-        shotgun = ammo["stages"][0]["items"][0]
+        shotgun = ammo["stages"][0]["base_items"][0]
         self.assertEqual(shotgun["owned"], "场上")
         self.assertEqual(shotgun["owned_tier"], "黄金")
         self.assertEqual(shotgun["starting_tier"], "青铜")
         self.assertEqual(self.book.item("Tent", [], [card("Tent")])["owned"], "仓库")
         self.assertEqual(reference["matched_route_id"], "ammo")
-        self.assertEqual(ammo["owned_stash"], ["Tent"])
-        self.assertIn("装填", ammo["missing_roles"])
+        self.assertEqual(ammo["stages"][1]["base_items"][1]["owned"], "仓库")
+        self.assertEqual(ammo["role_count"], 1)
 
     def test_empty_inventory_is_known_but_unavailable_inventory_is_not(self):
         self.assertTrue(self.book.reference(state())["live"])
@@ -95,14 +169,15 @@ class ReferenceTests(unittest.TestCase):
             guide = self.book.reference(state(**{"board": [card("Shotgun")], **changes}))
             self.assertFalse(guide["live"])
             self.assertIsNone(guide["matched_route_id"])
-            self.assertTrue(all(not r["owned_board"] and not r["missing_roles"] for r in guide["routes"]))
+            self.assertTrue(all(item["owned"] == "未核对" for r in guide["routes"] for item in components(r)))
 
     def test_menu_replay_other_hero_and_unknown_state_never_claim_ownership(self):
         for changes in ({"status": "menu"}, {"hero": "Dooley"}, {"is_replay": True}, {"state_type": "Unknown"}, {"day": None}):
             guide = self.book.reference(state([card("Shotgun")], **changes))
             self.assertFalse(guide["live"])
-            self.assertTrue(all(r["core_count"] == 0 and not r["owned_board"] and not r["owned_stash"] for r in guide["routes"]))
-            self.assertEqual(route(guide, "ammo")["stages"][0]["items"][0]["owned"], "未核对")
+            self.assertTrue(all(r["core_count"] == 0 for r in guide["routes"]))
+            self.assertTrue(all(item["owned"] == "未核对" for r in guide["routes"] for item in components(r)))
+            self.assertEqual(route(guide, "ammo")["stages"][0]["base_items"][0]["owned"], "未核对")
 
     def test_combat_can_browse_and_a_reserve_never_matches_a_route(self):
         self.assertTrue(self.book.reference(state(in_combat=True, state_type="UnfamiliarCombatState"))["live"])
@@ -115,10 +190,24 @@ class ReferenceTests(unittest.TestCase):
         expected = [r["id"] for r in self.book.reference({})["routes"]]
         self.assertEqual([r["id"] for r in self.book.reference(state([card("Shotgun")]))["routes"]], expected)
 
+    def test_single_active_lost_blade_does_not_match_multi_active_health_recipe(self):
+        blade = copy.deepcopy(self.book.catalog.cards["Spear"])
+        blade["Id"] = "lost-blade"
+        blade["Localization"]["Title"]["Text"] = "Lost Blade"
+        self.book.catalog.cards[blade["Id"]] = blade
+        book = StrategyBook(self.book.catalog, self.book.data)
+        guide = book.reference(state([card(blade["Id"])]))
+        self.assertIsNone(guide["matched_route_id"])
+        self.assertEqual(route(guide, "health")["core_count"], 0)
+        self.assertNotIn("Lost Blade", next(r for r in book.data["routes"] if r["id"] == "health")["anchors"])
+        self.assertTrue(all(item["template_id"] != blade["Id"] for item in components(route(guide, "health"))))
+
     def test_stage_boundaries_and_effect_placeholders_remain_explicit(self):
         self.assertEqual([stage_for(d) for d in (None, False, 0, 1, 3, 4, 7, 8)], [None, None, None, "early", "early", "mid", "mid", "late"])
-        self.assertIn("［数值待确认］", self.book.item("Shotgun")["effects"][0])
-        self.assertIn("不是卡牌出现日", self.book.reference({})["stage_note"])
+        effect = self.book.item("Shotgun")["effects"][0]
+        self.assertEqual(effect.count("［数值待确认］"), 2)
+        self.assertNotIn("{", effect)
+        self.assertIn("不是卡牌出现日", self.book.data["stage_note"])
 
     def test_missing_or_ambiguous_template_never_borrows_another_image(self):
         self.book.templates["Shotgun"] = None
@@ -126,7 +215,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertFalse(item["known"])
         self.assertIn("Shotgun", item["name"])
         self.assertEqual(item["art_key"], "")
-        self.assertIsNone(route(self.book.reference({}), "ammo")["stages"][0]["slots"])
+        self.assertIsNone(route(self.book.reference({}), "ammo")["stages"][0]["base_slots"])
         duplicate = copy.deepcopy(self.book.catalog.cards["Tent"])
         duplicate["Id"] = "another-tent"
         self.book.catalog.cards[duplicate["Id"]] = duplicate
@@ -154,7 +243,7 @@ class ReferenceTests(unittest.TestCase):
             doc = make_document(self.book, snapshot, catalog_ok=healthy)
             self.assertEqual(doc["kind"], DOCUMENT_KIND)
             self.assertFalse(doc["reference"]["live"])
-            self.assertEqual(route(doc["reference"], "ammo")["owned_board"], [])
+            self.assertTrue(all(item["owned"] == "未核对" for item in components(route(doc["reference"], "ammo"))))
         new_run = make_document(self.book, state(snapshot_id="new-run"))
         self.assertIsNone(new_run["reference"]["matched_route_id"])
         self.assertNotIn("recommendations", new_run)
@@ -236,7 +325,7 @@ class WorkerTests(unittest.TestCase):
                     atomic_json(runtime / "snapshot.json", state(snapshot_id="new-run", hero="Dooley"))
                     other = wait_for(lambda d: d["snapshot_id"] == "new-run")
                     self.assertFalse(other["reference"]["live"])
-                    self.assertEqual(route(other["reference"], "ammo")["owned_board"], [])
+                    self.assertTrue(all(item["owned"] == "未核对" for item in components(route(other["reference"], "ammo"))))
                     stale = state(snapshot_id="stale", captured_at_utc=(datetime.now(timezone.utc)-timedelta(seconds=20)).isoformat())
                     atomic_json(runtime / "snapshot.json", stale)
                     self.assertEqual(wait_for(lambda d: d["snapshot_id"] == "stale")["status"], "stale")
@@ -267,11 +356,13 @@ class InstalledCatalogTests(unittest.TestCase):
         if not (default_cache() / "GameData.db").exists(): self.skipTest("Installed game catalog unavailable")
         book = StrategyBook(Catalog())
         self.assertTrue(all(book.templates.values()))
+        self.assertTrue(book.verified)
+        self.assertLessEqual(len({template["ArtKey"] for template in book.templates.values()}), 64)
         for result in book.reference({})["routes"]:
             self.assertTrue(result["sources"])
             for stage in result["stages"]:
-                self.assertLessEqual(stage["slots"], 10)
-                for item in stage["items"]:
+                self.assertLessEqual(stage["base_slots"], 10)
+                for item in stage["base_items"] + stage["optional_items"]:
                     self.assertEqual(item["art_key"], book.catalog.cards[item["template_id"]]["ArtKey"])
                     self.assertTrue(item["effects"])
 

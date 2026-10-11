@@ -10,14 +10,12 @@ namespace KarnokAdvisor;
 internal sealed class AdvisorPanel : IDisposable
 {
     private const float Padding = 20;
-    private const float CardHeight = 208;
     private static readonly Color Gold = Hex(0xD8B16B);
     private static readonly Color Ivory = Hex(0xF0E1C6);
     private static readonly Color Muted = Hex(0xAF9F92);
     private static readonly Color Green = Hex(0xA2C49A);
     private static readonly Color Cyan = Hex(0x83C5CB);
     private static readonly Color Amber = Hex(0xE0B27B);
-    private static readonly Color Line = Hex(0x655142);
     private readonly List<Texture2D> _textures = new List<Texture2D>();
     private readonly HashSet<string> _open = new HashSet<string>();
     private readonly ReferenceViewState _selection = new ReferenceViewState();
@@ -26,8 +24,8 @@ internal sealed class AdvisorPanel : IDisposable
     private readonly Font _titleFont;
     private readonly GameObject _blocker;
     private readonly RectTransform _blockerRect;
-    private readonly GUIStyle _frame, _surface, _card, _coreCard, _button, _selectedButton, _smallButton;
-    private readonly GUIStyle _body, _muted, _small, _title, _heading, _tileTitle, _tileMeta, _number;
+    private readonly GUIStyle _frame, _card, _coreCard, _button, _selectedButton, _smallButton;
+    private readonly GUIStyle _body, _muted, _small, _title, _heading, _tileTitle, _tileMeta;
     private readonly GUIStyle _windowStyle, _scrollTrack, _scrollThumb;
     private readonly Texture2D _diamond;
     private Rect _window;
@@ -36,7 +34,7 @@ internal sealed class AdvisorPanel : IDisposable
     private float _scale = 1;
     private string _contentId = "";
     private string _message = "";
-    private JObject? _snapshot, _reference;
+    private JObject? _reference;
     private Action? _refresh;
     private float Width => _window.width;
     internal string RenderDiagnostics => "visible=" + _visible + " compact=" + _compact + " window=" + _window + " scale=" + _scale;
@@ -53,9 +51,7 @@ internal sealed class AdvisorPanel : IDisposable
         _heading = TextStyle(_bodyFont, 18, Ivory, true, FontStyle.Bold);
         _tileTitle = TextStyle(_bodyFont, 13, Ivory, true, FontStyle.Bold);
         _tileMeta = TextStyle(_bodyFont, 11, Muted, true);
-        _number = TextStyle(_bodyFont, 18, Ivory, false, FontStyle.Bold);
         _frame = Surface(Hex(0x211D25), Hex(0xA47C48), 7, 2, .014f);
-        _surface = Surface(Hex(0x2B252B), Hex(0x5E4D46), 5, 1, .008f);
         _card = Surface(Hex(0x29252C), Hex(0x6B5748), 5, 1, .007f);
         _coreCard = Surface(Hex(0x362B2D), Hex(0xC49A58), 5, 1, .008f);
         _card.hover.background = Texture(Hex(0x3B3033), Gold, 5, 1, .008f);
@@ -102,8 +98,8 @@ internal sealed class AdvisorPanel : IDisposable
     internal bool Draw(bool visible, JObject? snapshot, JObject? document, string message, Action refresh)
     {
         _visible = visible;
-        _snapshot = snapshot;
         _reference = document?["reference"] as JObject;
+        _art.UseCatalog((string?)_reference?["catalog_digest"] ?? "");
         _live = ReferenceViewState.IsLive(document, snapshot, DateTimeOffset.UtcNow);
         _message = message;
         _refresh = refresh;
@@ -119,7 +115,7 @@ internal sealed class AdvisorPanel : IDisposable
         var screenWidth = Screen.width / _scale;
         var screenHeight = Screen.height / _scale;
         var width = Mathf.Min(_compact ? 356 : 504, screenWidth - 20);
-        var height = _compact ? 72 : Mathf.Min(844, screenHeight - 40);
+        var height = _compact ? 60 : Mathf.Min(820, screenHeight - 40);
         if (!_initialized)
         {
             _window = new Rect(screenWidth - width - 24, 54, width, height);
@@ -168,26 +164,21 @@ internal sealed class AdvisorPanel : IDisposable
         foreach (var p in new[] { new Vector2(10, 10), new Vector2(Width - 10, 10), new Vector2(10, _window.height - 10), new Vector2(Width - 10, _window.height - 10) })
             Diamond(p, 3, Gold);
         if (_compact) { DrawCompact(); return; }
-        Diamond(new Vector2(38, 40), 21, Hex(0x896741));
-        Diamond(new Vector2(38, 40), 18, Hex(0x30252B));
-        Label(new Rect(19, 20, 38, 37), "K", _title, Gold, TextAnchor.MiddleCenter);
-        Label(new Rect(71, 19, Width - 204, 31), "卡诺克 · 阵容手册", _title, Ivory);
-        Label(new Rect(73, 53, Width - 151, 20), _live ? "已同步持有 · 自由规划你的路线" : "自由浏览 · 持有状态尚未核对", _small, _live ? Green : Muted);
-        if (GUI.Button(new Rect(Width - 112, 22, 64, 27), "收起", _smallButton)) _compact = true;
-        if (GUI.Button(new Rect(Width - 39, 22, 22, 27), "×", _smallButton)) _visible = false;
-        DrawStats();
+        Label(new Rect(Padding, 16, 178, 31), "卡诺克阵容", _title, Ivory);
+        Label(new Rect(203, 25, Width - 323, 20), _live ? "实时持有" : "持有未核对", _small, _live ? Green : Amber);
+        if (GUI.Button(new Rect(Width - 112, 20, 64, 27), "收起", _smallButton)) _compact = true;
+        if (GUI.Button(new Rect(Width - 39, 20, 22, 27), "×", _smallButton)) _visible = false;
+        if (GUI.Button(new Rect(Padding, 56, 106, 25), (_selection.FollowOwned ? "◆ " : "") + "匹配持有", _smallButton)) _selection.MatchOwned();
+        if (GUI.Button(new Rect(Padding + 114, 56, 106, 25), (_selection.FollowDay ? "◆ " : "") + "跟随天数", _smallButton)) _selection.MatchDay();
+        if (GUI.Button(new Rect(Width - 110, 56, 90, 25), "F10 同步", _smallButton)) _refresh?.Invoke();
         var routes = _reference?["routes"] as JArray;
         if (_reference == null || routes == null || routes.Count == 0)
         {
-            Label(new Rect(Padding + 12, 157, Width - Padding * 2 - 24, 100), "阵容资料加载中\n本地资料就绪后，七条路线会在这里展开。", _body, Muted);
-            Label(new Rect(Padding + 12, 279, Width - Padding * 2 - 24, 80), _message, _muted, Amber);
-            DrawFooter();
-            GUI.DragWindow(new Rect(0, 0, Width - 125, 76));
+            Label(new Rect(Padding, 108, Width - Padding * 2, 40), "正在加载阵容资料", _body, Muted);
+            Label(new Rect(Padding, 156, Width - Padding * 2, 100), _message, _muted, Amber);
+            GUI.DragWindow(new Rect(0, 0, Width - 125, 50));
             return;
         }
-        Label(new Rect(Padding, 137, 150, 23), "选择流派", _muted, Gold);
-        if (GUI.Button(new Rect(Width - 212, 134, 93, 25), (_selection.FollowOwned ? "◆ " : "") + "匹配持有", _smallButton)) _selection.MatchOwned();
-        if (GUI.Button(new Rect(Width - 111, 134, 91, 25), (_selection.FollowDay ? "◆ " : "") + "跟随天数", _smallButton)) _selection.MatchDay();
         DrawRoutes(routes);
         DrawStages();
         _selection.Synchronize(_reference, _live);
@@ -195,54 +186,36 @@ internal sealed class AdvisorPanel : IDisposable
         var stage = route == null ? null : _selection.Stage(route);
         if (route != null && stage != null)
         {
-            Label(new Rect(Padding, 298, Width - 181, 29), Value(route["name"]), _heading, Gold);
-            var slots = (int?)stage["slots"];
+            Label(new Rect(Padding, 212, Width - 181, 29), Value(route["name"]), _heading, Gold);
+            var slots = (int?)stage["base_slots"];
             var unlocked = _live ? (int?)_reference["unlocked_slots"] : null;
-            Badge(new Rect(Width - 153, 298, 133, 27), "组合 " + Value(stage["slots"]) + " 格" + (unlocked.HasValue ? " / " + unlocked + " 格" : ""),
-                slots.HasValue && unlocked.HasValue && slots > unlocked ? Amber : Muted);
-            var items = stage["items"] as JArray ?? new JArray();
-            var count = items.Count(c => (string?)c["owned"] == "场上");
-            var reserve = items.Count(c => (string?)c["owned"] == "仓库");
-            Label(new Rect(Padding, 331, Width - Padding * 2, 21), _live
-                ? "在场 " + count + " / " + items.Count + "  ·  仓库 " + reserve + "  ·  图卡顺序不代表摆位"
-                : "参考组合 " + items.Count + " 件  ·  图卡顺序不代表摆位", _small, Muted);
+            Badge(new Rect(Width - 153, 212, 133, 27), "基础 " + Value(stage["base_slots"]) + " 格" + (unlocked.HasValue ? " / " + unlocked + " 格" : ""),
+                slots.HasValue && slots > (unlocked ?? 10) ? Amber : Muted);
+            var top = 250f;
+            if ((bool?)_reference["verified"] != true)
+            {
+                Label(new Rect(Padding, top, Width - Padding * 2, 23), Value(_reference["version_note"]), _small, Amber);
+                top += 28;
+            }
             var contentId = _selection.RouteId + "/" + _selection.StageKey + "/" + _selection.CardId;
             if (_contentId != contentId) { _scroll = Vector2.zero; _contentId = contentId; }
-            var viewport = new Rect(Padding, 358, Width - Padding * 2, Math.Max(100, _window.height - 412));
+            var viewport = new Rect(Padding, top, Width - Padding * 2, Math.Max(100, _window.height - top - 20));
             var card = _selection.Card(stage);
             if (card != null) DrawDetail(viewport, card);
-            else DrawBuild(viewport, route, stage, items);
+            else DrawBuild(viewport, route, stage);
         }
-        DrawFooter();
-        GUI.DragWindow(new Rect(0, 0, Width - 125, 76));
+        GUI.DragWindow(new Rect(0, 0, Width - 125, 50));
     }
 
     private void DrawCompact()
     {
-        Diamond(new Vector2(28, 35), 15, Gold);
-        Diamond(new Vector2(28, 35), 12, Hex(0x2B2429));
-        Label(new Rect(48, 12, Width - 160, 25), "卡诺克 · 阵容手册", _tileTitle, Ivory);
         var route = _reference == null ? null : _selection.Route(_reference);
-        Label(new Rect(48, 39, Width - 160, 19), (_live ? "D" + Value(_snapshot?["day"]) + " · " : "参考 · ") + Value(route?["name"]), _small, _live ? Green : Muted);
-        if (GUI.Button(new Rect(Width - 101, 22, 61, 27), "展开", _smallButton)) _compact = false;
-        if (GUI.Button(new Rect(Width - 32, 22, 20, 27), "×", _smallButton)) _visible = false;
-        GUI.DragWindow(new Rect(0, 0, Width - 108, 72));
-    }
-
-    private void DrawStats()
-    {
-        var strip = new Rect(Padding, 82, Width - Padding * 2, 44);
-        GUI.Box(strip, GUIContent.none, _surface);
-        var cell = strip.width / 4;
-        var labels = new[] { "日程", "金币", "等级", "可用格" };
-        var values = new[] { _live ? "D" + Value(_snapshot?["day"]) : "—", _live ? Value(_snapshot?["player_attributes"]?["Gold"]) : "—",
-            _live ? Value(_snapshot?["player_attributes"]?["Level"]) : "—", _live ? Value(_reference?["unlocked_slots"]) : "—" };
-        for (var n = 0; n < labels.Length; n++)
-        {
-            if (n > 0) Fill(new Rect(strip.x + cell * n, strip.y + 9, 1, 26), Line);
-            Label(new Rect(strip.x + cell * n, strip.y + 2, cell, 17), labels[n], _small, Muted, TextAnchor.MiddleCenter);
-            Label(new Rect(strip.x + cell * n, strip.y + 19, cell, 23), values[n], _number, n == 1 ? Gold : Ivory, TextAnchor.MiddleCenter);
-        }
+        var stage = route == null ? null : _selection.Stage(route);
+        Label(new Rect(18, 10, Width - 130, 23), Value(route?["name"]), _tileTitle, Gold);
+        Label(new Rect(18, 34, Width - 130, 18), Value(stage?["label"]) + " · " + (_live ? "实时持有" : "持有未核对"), _small, _live ? Green : Amber);
+        if (GUI.Button(new Rect(Width - 101, 17, 61, 27), "展开", _smallButton)) _compact = false;
+        if (GUI.Button(new Rect(Width - 32, 17, 20, 27), "×", _smallButton)) _visible = false;
+        GUI.DragWindow(new Rect(0, 0, Width - 108, 60));
     }
 
     private void DrawRoutes(JArray routes)
@@ -253,7 +226,7 @@ internal sealed class AdvisorPanel : IDisposable
         {
             var route = routes[n];
             var id = (string?)route["id"] ?? "";
-            var rect = new Rect(Padding + n % 4 * (width + gap), 168 + n / 4 * 38, width, 32);
+            var rect = new Rect(Padding + n % 4 * (width + gap), 90 + n / 4 * 38, width, 32);
             var style = id == _selection.RouteId ? _selectedButton : _button;
             if (GUI.Button(rect, GUIContent.none, style)) _selection.SelectRoute(id);
             DrawArt(new Rect(rect.x + 4, rect.y + 4, 24, 24), route["cover"]);
@@ -270,62 +243,46 @@ internal sealed class AdvisorPanel : IDisposable
         var width = (Width - Padding * 2 - 12) / 3;
         for (var n = 0; n < keys.Length; n++)
         {
-            if (GUI.Button(new Rect(Padding + n * (width + 6), 252, width, 32),
+            if (GUI.Button(new Rect(Padding + n * (width + 6), 170, width, 30),
                 (_live && (string?)_reference?["stage"] == keys[n] ? "◆ " : "") + labels[n],
                 _selection.StageKey == keys[n] ? _selectedButton : _button)) _selection.SelectStage(keys[n]);
         }
     }
 
-    private void DrawBuild(Rect viewport, JObject route, JObject stage, JArray items)
+    private void DrawBuild(Rect viewport, JObject route, JObject stage)
     {
         var width = viewport.width - 14;
-        var gridHeight = (float)Math.Ceiling(items.Count / 3f) * (CardHeight + 10);
-        var lines = new List<(string Text, Color Color, string Url)>();
-        void Add(string text, Color? color = null, string url = "") => lines.Add((text, color ?? Ivory, url));
-        Add("阶段思路", Gold);
-        Add(Value(stage["plan"]));
-        var sections = new List<(string Key, string Title, bool Expanded, List<(string Text, Color Color, string Url)> Lines)>();
-        foreach (var key in new[] { "ownership", "strategy", "sources" })
-        {
-            var content = new List<(string Text, Color Color, string Url)>();
-            void Detail(string text, Color? color = null, string url = "") => content.Add((text, color ?? Ivory, url));
-            if (key == "ownership")
-            {
-                Detail(_live ? "场上：" + JoinOr(route["owned_board"], "暂无此路线组件") : "持有状态未核对；进入卡诺克对局后自动更新。", _live ? Green : Amber);
-                if (_live && Strings(route["owned_stash"]).Count > 0) Detail("仓库：" + JoinOr(route["owned_stash"], "无") + "（尚未在场）", Amber);
-                if (_live && Strings(route["missing_roles"]).Count > 0) Detail("尚缺功能：" + JoinOr(route["missing_roles"], "无"), Amber);
-                Detail("转型：" + Value(route["pivot"]));
-            }
-            else if (key == "strategy")
-            {
-                Detail(Value(route["summary"]));
-                Detail("技能方向：" + Value(route["skills"]));
-                Detail("注意条件：" + Value(route["caution"]), Amber);
-            }
-            else
-            {
-                Detail(Value(_reference?["stage_note"]), Muted);
-                Detail(Value(_reference?["tier_note"]), Muted);
-                Detail("复核 " + Value(_reference?["reviewed_at"]) + " · 补丁 " + Value(_reference?["reviewed_patch"]), Gold);
-                Detail(Value(_reference?["version_note"]), (bool?)_reference?["verified"] == true ? Muted : Amber);
-                foreach (var source in (route["sources"] as JArray ?? new JArray()).OfType<JObject>())
-                    Detail(Value(source["title"]) + " · " + Value(source["date"]), Gold, (string?)source["url"] ?? "");
-            }
-            sections.Add((key, key == "ownership" ? "当前持有与转型" : key == "strategy" ? "技能与注意条件" : "资料与版本", _open.Contains(key), content));
-        }
         var textWidth = width - 24;
+        var columns = width >= 400 ? 4 : 3;
+        var tileWidth = (width - (columns - 1) * 8) / columns;
+        var baseItems = ReferenceViewState.BaseCards(stage);
+        var options = ReferenceViewState.OptionalCards(stage);
+        var baseRows = GridRows(baseItems, tileWidth, columns);
+        var optionRows = GridRows(options, tileWidth, columns);
+        var planHeight = TextHeight(_muted, Value(stage["plan"]), textWidth) + 16;
+        var sections = new List<(string Key, string Title, bool Expanded, List<(string Text, Color Color, string Url)> Lines)>();
+        var strategy = new List<(string Text, Color Color, string Url)> {
+            ("转型：" + Value(route["pivot"]), Ivory, ""),
+            ("技能：" + Value(route["skills"]), Ivory, ""),
+            (Value(route["caution"]), Amber, "")
+        };
+        sections.Add(("strategy", "转型与技能", _open.Contains("strategy"), strategy));
+        var sources = (route["sources"] as JArray ?? new JArray()).OfType<JObject>()
+            .Select(source => (Value(source["title"]), Gold, (string?)source["url"] ?? "")).ToList();
+        sections.Add(("sources", "攻略来源", _open.Contains("sources"), sources));
         float Height(string text) => TextHeight(_muted, text, textWidth) + 10;
-        var contentHeight = gridHeight + lines.Sum(l => Height(l.Text)) + sections.Sum(s => 34 + (s.Expanded ? s.Lines.Sum(l => Height(l.Text)) : 0)) + 18;
+        var contentHeight = 60 + baseRows.Sum(h => h + 8) + optionRows.Sum(h => h + 8) + planHeight
+            + sections.Sum(s => 34 + (s.Expanded ? s.Lines.Sum(line => Height(line.Text)) : 0)) + 12;
         BeginScroll(viewport, width, contentHeight);
-        var tileWidth = (width - 20) / 3;
-        for (var n = 0; n < items.Count; n++)
-        {
-            var tile = new Rect(n % 3 * (tileWidth + 10), n / 3 * (CardHeight + 10), tileWidth, CardHeight);
-            if (tile.yMax < _scroll.y || tile.y > _scroll.y + viewport.height) continue;
-            DrawCard(tile, items[n]);
-        }
-        var y = gridHeight + 3;
-        foreach (var line in lines) { var h = Height(line.Text); DrawLine(line, new Rect(12, y, textWidth, h)); y += h; }
+        Label(new Rect(0, 0, 140, 23), "基础组件", _body, Gold);
+        var ownedCount = ReferenceViewState.OwnedBaseCount(stage, _live);
+        if (ownedCount.HasValue) Label(new Rect(width - 200, 3, 200, 20), "基础在场 " + ownedCount + " / " + baseItems.Count, _small, Green, TextAnchor.UpperRight);
+        var y = DrawGrid(30, baseItems, baseRows, tileWidth, columns, viewport.height);
+        Label(new Rect(12, y, textWidth, planHeight - 8), Value(stage["plan"]), _muted, Ivory);
+        y += planHeight;
+        Label(new Rect(0, y, 140, 23), "可选组件", _body, Gold);
+        Label(new Rect(width - 140, y + 3, 140, 20), "按需选用", _small, Muted, TextAnchor.UpperRight);
+        y = DrawGrid(y + 30, options, optionRows, tileWidth, columns, viewport.height);
         foreach (var section in sections)
         {
             if (GUI.Button(new Rect(0, y, width, 28), (section.Expanded ? "−  " : "+  ") + section.Title, _smallButton))
@@ -344,6 +301,33 @@ internal sealed class AdvisorPanel : IDisposable
         EndScroll(viewport, contentHeight);
     }
 
+    private float[] GridRows(JArray items, float tileWidth, int columns)
+    {
+        var rows = new float[(items.Count + columns - 1) / columns];
+        for (var n = 0; n < items.Count; n++) rows[n / columns] = Math.Max(rows[n / columns], CardHeight(items[n], tileWidth));
+        return rows;
+    }
+
+    private float DrawGrid(float y, JArray items, float[] rows, float tileWidth, int columns, float viewportHeight)
+    {
+        for (var row = 0; row < rows.Length; row++)
+        {
+            for (var column = 0; column < columns && row * columns + column < items.Count; column++)
+            {
+                var tile = new Rect(column * (tileWidth + 8), y, tileWidth, rows[row]);
+                if (tile.yMax >= _scroll.y && tile.y <= _scroll.y + viewportHeight) DrawCard(tile, items[row * columns + column]);
+            }
+            y += rows[row] + 8;
+        }
+        return y;
+    }
+
+    private float CardHeight(JToken item, float width) => 156 + TextHeight(_tileMeta, CardUse(item), width - 14)
+        + (ReplacementNames(item).Length > 0 ? TextHeight(_tileMeta, "换：" + ReplacementNames(item), width - 14) + 4 : 0);
+
+    private static string CardUse(JToken item) => (string?)item["group"] == "optional" ? Value(item["use"]) : Value(item["role"]);
+    private static string ReplacementNames(JToken item) => string.Join("、", (item["replaces"] as JArray ?? new JArray()).Select(card => Value(card["name"])));
+
     private void DrawLine((string Text, Color Color, string Url) line, Rect rect)
     {
         if (line.Url.Length > 0)
@@ -357,14 +341,18 @@ internal sealed class AdvisorPanel : IDisposable
     {
         var core = (bool?)item["core"] == true;
         if (GUI.Button(tile, GUIContent.none, core ? _coreCard : _card)) _selection.SelectCard((string?)item["template_id"] ?? "");
-        var art = new Rect(tile.x + 7, tile.y + 7, tile.width - 14, 106);
+        var art = new Rect(tile.x + 7, tile.y + 7, tile.width - 14, 80);
         DrawArt(art, item);
-        if (core) Badge(new Rect(art.x + 3, art.y + 3, 33, 18), "核心", Gold, true);
+        var coreLabel = (string?)item["core_label"] ?? "";
+        if (coreLabel.Length > 0) Badge(new Rect(art.x + 2, art.y + 2, coreLabel.Length * 11 + 8, 18), coreLabel, Gold, true);
         var owned = _live ? (string?)item["owned"] : null;
-        if (owned == "场上" || owned == "仓库") Badge(new Rect(art.xMax - 36, art.yMax - 21, 33, 18), owned, owned == "场上" ? Green : Amber, true);
-        Label(new Rect(tile.x + 7, tile.y + 120, tile.width - 14, 30), Value(item["name"]), _tileTitle, Ivory, TextAnchor.UpperCenter);
-        Label(new Rect(tile.x + 7, tile.y + 152, tile.width - 14, 17), Value(item["starting_tier"]) + "起 · " + Value(item["span"]) + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
-        Label(new Rect(tile.x + 7, tile.y + 174, tile.width - 14, 28), Value(item["role"]), _tileMeta, core ? Gold : Cyan, TextAnchor.UpperCenter);
+        if (owned == "场上" || owned == "仓库") Badge(new Rect(art.xMax - 35, art.yMax - 20, 33, 18), owned, owned == "场上" ? Green : Amber, true);
+        Label(new Rect(tile.x + 7, tile.y + 94, tile.width - 14, 30), Value(item["name"]), _tileTitle, Ivory, TextAnchor.UpperCenter);
+        Label(new Rect(tile.x + 7, tile.y + 126, tile.width - 14, 17), Value(item["starting_tier"]) + "起 · " + Value(item["span"]) + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
+        var useHeight = TextHeight(_tileMeta, CardUse(item), tile.width - 14);
+        Label(new Rect(tile.x + 7, tile.y + 149, tile.width - 14, useHeight), CardUse(item), _tileMeta, core ? Gold : Cyan, TextAnchor.UpperCenter);
+        var replaces = ReplacementNames(item);
+        if (replaces.Length > 0) Label(new Rect(tile.x + 7, tile.y + 153 + useHeight, tile.width - 14, tile.height - 155 - useHeight), "换：" + replaces, _tileMeta, Amber, TextAnchor.UpperCenter);
     }
 
     private void DrawDetail(Rect viewport, JObject card)
@@ -373,10 +361,27 @@ internal sealed class AdvisorPanel : IDisposable
         var textWidth = width - 24;
         var effects = Strings(card["effects"]);
         if (effects.Count == 0) effects.Add("本机未提供可用说明，请以游戏卡面为准。");
-        var heights = effects.Select(e => TextHeight(_body, e, textWidth) + 12).ToArray();
-        var total = 313 + heights.Sum();
+        var details = new List<(string Text, Color Color, string Url)>();
+        var optional = (string?)card["group"] == "optional";
+        if (optional)
+        {
+            details.Add(("可选 · " + Value(card["use"]), Cyan, ""));
+            details.Add((Value(card["note"]), Ivory, ""));
+            var replaces = ReplacementNames(card);
+            if (replaces.Length > 0) details.Add(("替换基础组件：" + replaces, Gold, ""));
+            var slots = (int?)card["result_slots"];
+            var available = _live ? (int?)_reference?["unlocked_slots"] : null;
+            var space = (replaces.Length > 0 ? "替换后基础 " : "基础＋此牌 ") + Value(card["result_slots"]) + " 格";
+            if (available.HasValue) space += " · 当前可用 " + available + " 格";
+            if (slots > 10) space += " · 超上限 " + (slots - 10) + " 格，需再移除其他基础组件";
+            details.Add((space, slots > (available ?? 10) ? Amber : Muted, ""));
+        }
+        else details.Add(("基础组件" + ((string?)card["core_label"] is string label && label.Length > 0 ? " · " + label : ""), Gold, ""));
+        var detailHeights = details.Select(line => TextHeight(_muted, line.Text, textWidth) + 10).ToArray();
+        var heights = effects.Select(effect => TextHeight(_body, effect, textWidth) + 12).ToArray();
+        var total = 272 + detailHeights.Sum() + heights.Sum();
         BeginScroll(viewport, width, total);
-        if (GUI.Button(new Rect(0, 0, width, 28), "‹  返回当前阶段组合", _smallButton)) _selection.CloseCard();
+        if (GUI.Button(new Rect(0, 0, width, 28), "‹  返回阵容", _smallButton)) _selection.CloseCard();
         DrawArt(new Rect(7, 42, 142, 142), card);
         Label(new Rect(165, 44, width - 172, 55), Value(card["name"]), _heading, Gold);
         Label(new Rect(165, 106, width - 172, 34), Value(card["role"]), _muted, Cyan);
@@ -384,14 +389,19 @@ internal sealed class AdvisorPanel : IDisposable
         var owned = _live ? Value(card["owned"]) : "持有状态未核对";
         if (_live && (string?)card["owned_tier"] is string tier && tier.Length > 0) owned += " · 当前" + tier;
         Badge(new Rect(0, 196, width, 28), owned, owned.StartsWith("场上", StringComparison.Ordinal) ? Green : Muted);
-        Label(new Rect(12, 232, textWidth, 22), "本机卡面 · " + Value(card["starting_tier"]) + "品质参考", _muted, Gold);
-        var y = 262f;
+        var y = 234f;
+        for (var n = 0; n < details.Count; n++)
+        {
+            DrawLine(details[n], new Rect(12, y, textWidth, detailHeights[n]));
+            y += detailHeights[n];
+        }
+        Label(new Rect(12, y, textWidth, 22), "本机卡面 · " + Value(card["starting_tier"]) + "品质参考", _muted, Gold);
+        y += 30;
         for (var n = 0; n < effects.Count; n++)
         {
             Label(new Rect(12, y, textWidth, heights[n]), effects[n], _body, Ivory);
             y += heights[n];
         }
-        Label(new Rect(12, y + 8, textWidth, 35), "数值占位和附魔请以游戏内当前卡面为准。", _tileMeta, Muted);
         EndScroll(viewport, total);
     }
 
@@ -419,15 +429,7 @@ internal sealed class AdvisorPanel : IDisposable
         _scroll.y = GUI.VerticalSlider(new Rect(viewport.xMax - 6, viewport.y, 6, viewport.height), _scroll.y, 0, limit, _scrollTrack, _scrollThumb);
     }
 
-    private void DrawFooter()
-    {
-        var y = _window.height - 43;
-        Rule(Padding, y, Width - Padding * 2, Line);
-        var status = !_live ? "本地参考 · 待同步持有" : _selection.CardId.Length > 0 ? "Esc 返回组合" : "点击卡牌看详情 · 下滑看思路";
-        Label(new Rect(Padding, y + 13, Width - 221, 21), status, _small, _live ? Muted : Amber);
-        if (GUI.Button(new Rect(Width - 193, y + 8, 78, 27), "F9 隐藏", _smallButton)) _visible = false;
-        if (GUI.Button(new Rect(Width - 106, y + 8, 86, 27), "F10 同步", _smallButton)) _refresh?.Invoke();
-    }
+
 
     private void Badge(Rect rect, string text, Color color, bool opaque = false)
     {
@@ -452,7 +454,6 @@ internal sealed class AdvisorPanel : IDisposable
 
     private static float TextHeight(GUIStyle style, string text, float width) => Math.Max(style.lineHeight + 2, style.CalcHeight(new GUIContent(text), Math.Max(20, width)) + 2);
     private static List<string> Strings(JToken? token) => token is JArray array ? array.Select(t => t.ToString()).Where(s => s.Length > 0).ToList() : new List<string>();
-    private static string JoinOr(JToken? token, string fallback) { var names = Strings(token); return names.Count > 0 ? string.Join("、", names) : fallback; }
     private static string Value(JToken? value) => value == null || value.Type == JTokenType.Null ? "—" : value.ToString();
     private static Color Hex(int rgb) => new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1);
     private static void Fill(Rect rect, Color color) { var previous = GUI.color; GUI.color = color; GUI.DrawTexture(rect, Texture2D.whiteTexture); GUI.color = previous; }

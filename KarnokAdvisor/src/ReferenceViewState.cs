@@ -7,7 +7,7 @@ namespace KarnokAdvisor;
 // View choices are identities, never cached card objects or live ownership conclusions.
 internal sealed class ReferenceViewState
 {
-    internal const string DocumentKind = "karnok-build-reference-v2";
+    internal const string DocumentKind = "karnok-build-reference-v3";
     internal string RouteId { get; private set; } = "";
     internal string StageKey { get; private set; } = "early";
     internal string CardId { get; private set; } = "";
@@ -40,7 +40,11 @@ internal sealed class ReferenceViewState
     internal void CloseCard() => CardId = "";
     internal JObject? Route(JObject reference) => (reference["routes"] as JArray)?.OfType<JObject>().FirstOrDefault(r => (string?)r["id"] == RouteId);
     internal JObject? Stage(JObject route) => (route["stages"] as JArray)?.OfType<JObject>().FirstOrDefault(s => (string?)s["key"] == StageKey);
-    internal JObject? Card(JObject stage) => (stage["items"] as JArray)?.OfType<JObject>().FirstOrDefault(c => (string?)c["template_id"] == CardId && CardId.Length > 0);
+    internal static JArray BaseCards(JObject stage) => stage["base_items"] as JArray ?? new JArray();
+    internal static JArray OptionalCards(JObject stage) => stage["optional_items"] as JArray ?? new JArray();
+    internal static int? OwnedBaseCount(JObject stage, bool live) => live ? BaseCards(stage).Count(c => (string?)c["owned"] == "场上") : (int?)null;
+    internal JObject? Card(JObject stage) => BaseCards(stage).Concat(OptionalCards(stage)).OfType<JObject>()
+        .FirstOrDefault(c => (string?)c["template_id"] == CardId && CardId.Length > 0);
 
     internal static bool IsLive(JObject? document, JObject? snapshot, DateTimeOffset now)
     {

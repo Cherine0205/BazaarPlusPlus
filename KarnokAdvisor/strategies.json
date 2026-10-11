@@ -1,133 +1,1315 @@
 {
   "reviewed_at": "2026-10-11",
   "reviewed_patch": "19.0",
-  "verified_catalog_digest": "6112ed478a2308b507f93657537ab4ef089eb5f77cacd3801019aa03c126101f",
-  "stage_note": "D1–3 / D4–7 / D8+ 是手册的规划分段，不是卡牌出现日。组合供选牌参考，不代表固定摆位或十胜保证。",
+  "verified_catalog_digest": "aeb7518f5b046797318a963b01ffb306383e7e0a116bfe76e3cd800ed71e926b",
+  "stage_note": "D1–3 / D4–7 / D8+ 是规划分段，不是卡牌出现日。基础组件是一种参考搭配；可选组件按需择取，不要求全部同时上场。",
   "sources": [
-    {"id": "patch19", "title": "官方 19.0 更新", "date": "2026-10-07", "url": "https://steamcommunity.com/games/1617400/announcements/detail/674008262454018713"},
-    {"id": "patch19mirror", "title": "19.0 更新记录镜像", "date": "2026-10-07", "url": "https://steamdb.info/patchnotes/25778800/"},
-    {"id": "meta18", "title": "Mobalytics · Season 18 阵容", "date": "2026-09-05", "url": "https://mobalytics.gg/the-bazaar/guides/meta-builds"},
-    {"id": "selfslow", "title": "Kripp · 自减速攻略", "date": "2026-05-20", "url": "https://mobalytics.gg/the-bazaar/builds/self-slow-karnok-kripp"},
-    {"id": "community", "title": "Bazaar Builds · 卡诺克流派攻略", "date": "历史攻略，未标更新日", "url": "https://bazaar-builds.net/karnok-guide/"},
-    {"id": "health", "title": "Kripp · 最大生命攻略", "date": "2026-05-14", "url": "https://mobalytics.gg/the-bazaar/builds/max-health-karnok-kripp"},
-    {"id": "poison", "title": "Kripp · 剧毒攻略", "date": "2026-03-14", "url": "https://mobalytics.gg/the-bazaar/builds/poison-karnok-kripp"},
-    {"id": "burn", "title": "Kripp · 灼烧攻略", "date": "2026-03-12", "url": "https://mobalytics.gg/the-bazaar/builds/burn-karnok-kripp"}
+    {
+      "id": "patch19",
+      "title": "官方 19.0 更新",
+      "date": "2026-10-07",
+      "url": "https://steamcommunity.com/games/1617400/announcements/detail/674008262454018713"
+    },
+    {
+      "id": "patch19mirror",
+      "title": "19.0 更新记录镜像",
+      "date": "2026-10-07",
+      "url": "https://steamdb.info/patchnotes/25778800/"
+    },
+    {
+      "id": "meta18",
+      "title": "Mobalytics · Season 18 阵容",
+      "date": "2026-09-05",
+      "url": "https://mobalytics.gg/the-bazaar/guides/meta-builds"
+    },
+    {
+      "id": "selfslow",
+      "title": "Kripp · 自减速攻略",
+      "date": "2026-05-20",
+      "url": "https://mobalytics.gg/the-bazaar/builds/self-slow-karnok-kripp"
+    },
+    {
+      "id": "community",
+      "title": "Bazaar Builds · 卡诺克流派攻略",
+      "date": "历史攻略，未标更新日",
+      "url": "https://bazaar-builds.net/karnok-guide/"
+    },
+    {
+      "id": "health",
+      "title": "Kripp · 最大生命攻略",
+      "date": "2026-05-14",
+      "url": "https://mobalytics.gg/the-bazaar/builds/max-health-karnok-kripp"
+    },
+    {
+      "id": "poison",
+      "title": "Kripp · 剧毒攻略",
+      "date": "2026-03-14",
+      "url": "https://mobalytics.gg/the-bazaar/builds/poison-karnok-kripp"
+    },
+    {
+      "id": "burn",
+      "title": "Kripp · 灼烧攻略",
+      "date": "2026-03-12",
+      "url": "https://mobalytics.gg/the-bazaar/builds/burn-karnok-kripp"
+    }
   ],
   "routes": [
     {
-      "id": "friends", "name": "伙伴 · 飞行暴怒", "anchors": ["Outlands Terror", "Wing Sigil"], "sources": ["meta18", "health"],
-      "summary": "以伙伴过渡，凑齐加速、怒火与主力武器后再集中投入。",
+      "id": "friends",
+      "name": "伙伴 · 飞行暴怒",
+      "anchors": [
+        "Outlands Terror",
+        "Wing Sigil"
+      ],
+      "sources": [
+        "meta18",
+        "health"
+      ],
       "roles": [
-        {"name": "主力", "items": ["Outlands Terror"]},
-        {"name": "加速", "items": ["Flying Squirrel", "Beast Call", "Hunting Hawk"]},
-        {"name": "飞行联动", "items": ["Messenger Sparrow", "Wing Sigil"]}
+        {
+          "name": "主力",
+          "items": [
+            "Outlands Terror"
+          ]
+        },
+        {
+          "name": "加速",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call",
+            "Hunting Hawk"
+          ]
+        },
+        {
+          "name": "飞行联动",
+          "items": [
+            "Messenger Sparrow",
+            "Wing Sigil"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Spear", "Flying Squirrel", "Hunting Hawk", "Hunting Knife"], "plan": "先让长矛和伙伴形成当日战力，飞鼠放在主力左侧。"},
-        {"key": "mid", "items": ["Outlands Terror", "Flying Squirrel", "Hunting Hawk", "Beast Call", "Wing Sigil"], "plan": "拿到恐兽后补加速与怒火来源，未启动前保留过渡输出。"},
-        {"key": "late", "items": ["Outlands Terror", "Hunting Hawk", "Beast Call", "Messenger Sparrow", "Wing Sigil", "Fogshroom"], "plan": "检查暴怒启动、主力出手频率和续航，再选升级或保护主力。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Spear",
+            "Flying Squirrel",
+            "Hunting Hawk"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补过渡武器输出并加速伙伴；打怪可获得兽皮，不把猎刀当作怒火来源。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；已有稳定怒火来源时补输出。",
+              "replaces": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "有稳定武器输出时补战斗内伤害成长；不能替代主力武器。",
+              "replaces": []
+            }
+          ],
+          "plan": "长矛负责前期输出，飞鼠放在要加速的主力左侧；这些是过渡组件，不锁定终局路线。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Outlands Terror",
+            "Flying Squirrel",
+            "Wing Sigil"
+          ],
+          "core_items": [
+            "Outlands Terror",
+            "Wing Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Hawk",
+              "use": "加速非飞行目标",
+              "note": "加速非飞行物品并使其飞行；目标已在飞行时不能当作稳定定向加速。",
+              "replaces": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "伙伴及邻接加速",
+              "note": "加速一名伙伴及其相邻物品，配羽翼符印获得怒火；需安排实际伙伴和邻接目标。",
+              "replaces": []
+            },
+            {
+              "name": "Wolf",
+              "use": "暴怒时加速伙伴",
+              "note": "进入暴怒时加速伙伴，加速伙伴又能成长；需有怒火启动和伙伴目标。",
+              "replaces": []
+            },
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能与加速",
+              "note": "加速并为其他飞行物品充能；先有实际飞行目标，再配合羽翼符印。",
+              "replaces": []
+            },
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补伙伴加速与武器输出；怒火仍需羽翼符印等实际来源。",
+              "replaces": []
+            }
+          ],
+          "plan": "先让恐兽进入暴怒，再补飞行和加速；尚未启动时保留过渡输出。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Outlands Terror",
+            "Hunting Hawk",
+            "Beast Call",
+            "Wing Sigil"
+          ],
+          "core_items": [
+            "Outlands Terror",
+            "Wing Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能与加速",
+              "note": "补加速与其他飞行物品充能，不为凑满伙伴数量拆掉怒火来源。",
+              "replaces": []
+            },
+            {
+              "name": "Flying Squirrel",
+              "use": "主力定向加速",
+              "note": "要精确加速主力时可替换猎鹰，飞鼠需放在目标左侧。",
+              "replaces": [
+                "Hunting Hawk"
+              ]
+            },
+            {
+              "name": "Wolf",
+              "use": "暴怒时加速伙伴",
+              "note": "暴怒启动已经稳定时补全体伙伴加速与成长；它本身仍需要启动条件。",
+              "replaces": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "自减速 · 暴怒充能",
+              "note": "减速相邻己方物品，暴怒时充能己方其他物品；会拖慢相邻主力，按摆位取舍。",
+              "replaces": []
+            },
+            {
+              "name": "Snowshoes",
+              "use": "抗冻结 · 邻接补怒火",
+              "note": "相邻物品受到的冻结时间减半，使用相邻物品获得怒火；需要将要保护的主力放在相邻位置。",
+              "replaces": []
+            }
+          ],
+          "plan": "按短板补启动、频率或抗控制；先确保主力的暴怒收益能够生效。"
+        }
       ],
       "pivot": "拥有恐兽或羽翼符印才视为这条路线的信号；单独一张长矛不锁定流派。",
       "caution": "恐兽的吸血与冷却收益依赖暴怒。飞行、加速也需要实际触发，不等于已形成循环。",
       "skills": "优先核对伙伴加速、飞行充能、怒火启动；暴怒延长或缩短按现有触发链决定。"
     },
     {
-      "id": "boa", "name": "自减速 · 蚺蛇", "anchors": ["Chains", "Boa Constrictor"], "sources": ["community", "selfslow"],
-      "summary": "把减速变成成长和充能，先有可触发的链条，再追求高品质组件。",
+      "id": "boa",
+      "name": "自减速 · 蚺蛇",
+      "anchors": [
+        "Chains",
+        "Boa Constrictor"
+      ],
+      "sources": [
+        "community",
+        "selfslow"
+      ],
       "roles": [
-        {"name": "主力", "items": ["Boa Constrictor"]},
-        {"name": "伤害成长", "items": ["Chains"]},
-        {"name": "减速与暴击", "items": ["Honey Jar", "Ghillie Suit", "Hunter's Boots", "Night Vision"]}
+        {
+          "name": "主力",
+          "items": [
+            "Boa Constrictor"
+          ]
+        },
+        {
+          "name": "伤害成长",
+          "items": [
+            "Chains"
+          ]
+        },
+        {
+          "name": "减速与暴击",
+          "items": [
+            "Honey Jar",
+            "Ghillie Suit",
+            "Hunter's Boots",
+            "Night Vision"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Chains", "Tri-Net", "Waterskin"], "plan": "锁链配过渡武器；还没有蚺蛇时，优先维持当前战力。"},
-        {"key": "mid", "items": ["Boa Constrictor", "Chains", "Honey Jar", "Ghillie Suit", "Hunter's Blind"], "plan": "补齐减速、成长和防御，蜂蜜罐需邻接要减速的物品。"},
-        {"key": "late", "items": ["Boa Constrictor", "Chains", "Hunter's Boots", "Night Vision", "Fogshroom", "Log Trap", "Waterskin"], "plan": "用充能、暴击和控制补强；升级优先检查成长组件的实际增量。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Chains",
+            "Tri-Net"
+          ],
+          "core_items": [
+            "Chains",
+            "Tri-Net"
+          ],
+          "optional_items": [
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "左邻必须有可充能的主动物品；用其出手触发治疗，不放在无冷却物品右侧。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Jar",
+              "use": "邻接自减速",
+              "note": "要减速的物品需与蜂蜜罐相邻，先有可从减速获益的目标。",
+              "replaces": []
+            },
+            {
+              "name": "Fairies",
+              "use": "治疗 · 随机减控",
+              "note": "减速或冻结可能命中任意一方的其他物品；不能当作稳定定向自减速。",
+              "replaces": []
+            },
+            {
+              "name": "Security Blanket",
+              "use": "防御 · 需受减控",
+              "note": "此牌自己被减速、冻结或摧毁时提供怒火；需要让触发实际落到它。",
+              "replaces": []
+            }
+          ],
+          "plan": "锁链配三叉网投入过渡输出，拿到蚺蛇前先维持当日战力。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Boa Constrictor",
+            "Chains",
+            "Honey Jar"
+          ],
+          "core_items": [
+            "Boa Constrictor",
+            "Chains"
+          ],
+          "optional_items": [
+            {
+              "name": "Ghillie Suit",
+              "use": "防御与减速联动",
+              "note": "缺防御时补充，减速收益仍需实际触发。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Blind",
+              "use": "防御过渡",
+              "note": "生存时间不足时选用，不能代替蚺蛇的成长和减速来源。",
+              "replaces": []
+            },
+            {
+              "name": "Fairy Circle",
+              "use": "治疗 · 需己方减控",
+              "note": "己方减速或冻结己方物品时，治疗并充能该物品；不能依赖敌方施加的减控。占三格，先保证触发链与可用空间。",
+              "replaces": []
+            },
+            {
+              "name": "Fairies",
+              "use": "治疗 · 随机减控",
+              "note": "有治疗需求并能接受随机目标时选用，不能保证每次作用于蚺蛇。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在需要充能的主动物品右侧，兼顾治疗和频率。",
+              "replaces": []
+            }
+          ],
+          "plan": "蜂蜜罐与要减速的目标邻接；蚺蛇、锁链和减速来源到齐后再补防御。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Boa Constrictor",
+            "Chains",
+            "Hunter's Boots",
+            "Night Vision"
+          ],
+          "core_items": [
+            "Boa Constrictor",
+            "Chains"
+          ],
+          "optional_items": [
+            {
+              "name": "Fogshroom",
+              "use": "自减速 · 暴怒充能",
+              "note": "减速相邻己方物品，暴怒期间还能充能其他物品；将目标放在相邻位置。",
+              "replaces": []
+            },
+            {
+              "name": "Log Trap",
+              "use": "开场控制 · 暴怒续触",
+              "note": "敌方首次出手时减速其全场，进入暴怒可再触发；没有暴怒时不能当持续减速。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "有可用的左邻主动物品时补治疗和充能。",
+              "replaces": []
+            },
+            {
+              "name": "Fairy Circle",
+              "use": "治疗 · 需己方减控",
+              "note": "己方减速或冻结己方物品时，治疗并充能该物品；不能依赖敌方施加的减控。占三格，先保证触发链与可用空间。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Jar",
+              "use": "邻接自减速",
+              "note": "缺稳定邻接减速时选用，不能用远处的蜂蜜罐替代实际触发。",
+              "replaces": []
+            },
+            {
+              "name": "Ghillie Suit",
+              "use": "补防御",
+              "note": "基础触发链已齐但生存不足时选用。",
+              "replaces": []
+            }
+          ],
+          "plan": "核对减速是否命中蚺蛇、伤害是否成长，再按剩余格子补治疗或控制。"
+        }
       ],
       "pivot": "蚺蛇与锁链互相补齐时才加大投入；只有减速、没有成长或输出时保留转型空间。",
       "caution": "Radiant（辉耀）免疫减速，可能切断自减速链；缺续航时不能只堆触发速度。",
       "skills": "伤害成长、减速触发、暴击和充能；不要仅因名字含减速就购买。"
     },
     {
-      "id": "ammo", "name": "弹药 · 装填成长", "anchors": ["Shotgun", "Tent", "Heavy Crossbow"], "sources": ["selfslow"],
-      "summary": "霰弹枪需要装填续航；帐篷依赖相邻物品被减速，工具腰带可作另一种装填。",
+      "id": "ammo",
+      "name": "弹药 · 装填成长",
+      "anchors": [
+        "Shotgun",
+        "Tent",
+        "Heavy Crossbow"
+      ],
+      "sources": [
+        "selfslow"
+      ],
       "roles": [
-        {"name": "弹药输出", "items": ["Shotgun", "Heavy Crossbow", "Bear Trap"]},
-        {"name": "装填", "items": ["Tent", "Utility Belt"]},
-        {"name": "减速触发", "items": ["Chains", "Honey Jar", "Hunter's Boots", "Night Vision", "Fogshroom"]}
+        {
+          "name": "弹药输出",
+          "items": [
+            "Shotgun",
+            "Heavy Crossbow",
+            "Bear Trap"
+          ]
+        },
+        {
+          "name": "装填",
+          "items": [
+            "Tent",
+            "Utility Belt"
+          ]
+        },
+        {
+          "name": "减速触发",
+          "items": [
+            "Chains",
+            "Honey Jar",
+            "Hunter's Boots",
+            "Night Vision",
+            "Fogshroom"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Shotgun", "Utility Belt"], "plan": "先解决打空弹药的问题，不为尚未拿到的帐篷牺牲过多金币。"},
-        {"key": "mid", "items": ["Shotgun", "Tent", "Chains", "Bear Trap", "Honey Jar", "Ghillie Suit"], "plan": "帐篷挨着弹药输出，确保有减速能作用到该输出。"},
-        {"key": "late", "items": ["Shotgun", "Tent", "Hunter's Boots", "Night Vision", "Bear Trap", "Fogshroom", "Waterskin"], "plan": "补充暴击、充能与防御；换卡前确认没有拆掉唯一装填。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Shotgun",
+            "Utility Belt"
+          ],
+          "core_items": [
+            "Shotgun"
+          ],
+          "optional_items": [
+            {
+              "name": "Bear Trap",
+              "use": "副输出 · 需装填",
+              "note": "敌方出手触发反击的弹药武器；只有一发基础弹药，需要考虑装填。",
+              "replaces": []
+            },
+            {
+              "name": "Heavy Crossbow",
+              "use": "主力替代 · 需装填",
+              "note": "可替换霰弹枪；重弩也有弹药，且伤害成长需要它被加速或减速。",
+              "replaces": [
+                "Shotgun"
+              ]
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在弹药主力右侧补充能与治疗；仍需装填避免充能空弹武器。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Jar",
+              "use": "邻接自减速",
+              "note": "有需要被减速的武器或联动时选用，不为尚未拿到的帐篷占满格子。",
+              "replaces": []
+            }
+          ],
+          "plan": "先保证霰弹枪有装填。工具腰带按当前卡面使用，不套用旧攻略机制。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Shotgun",
+            "Tent",
+            "Chains"
+          ],
+          "core_items": [
+            "Shotgun",
+            "Tent"
+          ],
+          "optional_items": [
+            {
+              "name": "Heavy Crossbow",
+              "use": "主力替代 · 需减控",
+              "note": "替换霰弹枪的另一把弹药武器；成长依赖自身被加速或减速，保留帐篷装填。",
+              "replaces": [
+                "Shotgun"
+              ]
+            },
+            {
+              "name": "Bear Trap",
+              "use": "副输出 · 需装填",
+              "note": "额外反击武器；别让副武器挤掉主力装填和减速来源。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Jar",
+              "use": "邻接自减速",
+              "note": "与帐篷旁的弹药主力邻接，使减速确实触发帐篷装填。",
+              "replaces": []
+            },
+            {
+              "name": "Ghillie Suit",
+              "use": "补防御",
+              "note": "输出和装填到齐后补生存，不用防御牌替代唯一触发源。",
+              "replaces": []
+            },
+            {
+              "name": "Fairy Circle",
+              "use": "治疗 · 需己方减控",
+              "note": "己方减速或冻结己方物品时，治疗并充能该物品；不能依赖敌方施加的减控。占三格，先保证触发链与可用空间。",
+              "replaces": []
+            }
+          ],
+          "plan": "帐篷挨着弹药主力，并让减速实际作用于该主力，才有持续装填。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Shotgun",
+            "Tent",
+            "Hunter's Boots",
+            "Night Vision"
+          ],
+          "core_items": [
+            "Shotgun",
+            "Tent"
+          ],
+          "optional_items": [
+            {
+              "name": "Heavy Crossbow",
+              "use": "主力替代 · 需减控",
+              "note": "霰弹枪多重释放不足时可比较重弩成长；换后仍需被加速或减速及持续装填。",
+              "replaces": [
+                "Shotgun"
+              ]
+            },
+            {
+              "name": "Bear Trap",
+              "use": "副输出 · 需装填",
+              "note": "按剩余格子补反击，确认装填资源仍足以覆盖主力。",
+              "replaces": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "自减速 · 暴怒充能",
+              "note": "减速相邻己方物品；核对雾菇和帐篷是否都挨着弹药主力。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "充能左邻的主动物品，装填不足时不要只追出手频率。",
+              "replaces": []
+            },
+            {
+              "name": "Utility Belt",
+              "use": "装填替代 · 看卡面",
+              "note": "可替换帐篷作为装填方案，先核对本机工具腰带的触发条件，换后不沿用帐篷摆位。",
+              "replaces": [
+                "Tent"
+              ]
+            },
+            {
+              "name": "Fairy Circle",
+              "use": "治疗 · 需己方减控",
+              "note": "己方减速或冻结己方物品时，治疗并充能该物品；不能依赖敌方施加的减控。占三格，先保证触发链与可用空间。",
+              "replaces": []
+            }
+          ],
+          "plan": "每次换主力或装填都重查摆位；弹药、减速和装填必须同时成立。"
+        }
       ],
       "pivot": "已持有弹药输出和可用装填时继续；装填一直不齐则不要只追多重释放。",
       "caution": "旧攻略的工具腰带机制已变化，按本机卡面处理。帐篷、减速源和弹药武器同时在场也未必摆位正确。",
       "skills": "装填、弹药与伤害成长；购买技能前仍需核对实际作用目标。"
     },
     {
-      "id": "poison", "name": "减速 · 剧毒", "anchors": ["Trapvine", "Black Mamba", "Toxic Sigil"], "sources": ["poison", "meta18", "patch19"],
-      "summary": "先用毒组件过渡，后续以陷阱藤、减速和剧毒成长衔接。",
+      "id": "poison",
+      "name": "减速 · 剧毒",
+      "anchors": [
+        "Trapvine",
+        "Black Mamba",
+        "Toxic Sigil"
+      ],
+      "sources": [
+        "poison",
+        "meta18",
+        "patch19"
+      ],
       "roles": [
-        {"name": "剧毒输出", "items": ["Trapvine", "Worry Wart"]},
-        {"name": "剧毒成长", "items": ["Toxic Sigil", "Black Mamba", "Caustic Solvent"]},
-        {"name": "主动减速", "items": ["Bat", "Log Trap", "Worry Wart"]}
+        {
+          "name": "剧毒输出",
+          "items": [
+            "Trapvine",
+            "Worry Wart"
+          ]
+        },
+        {
+          "name": "剧毒成长",
+          "items": [
+            "Toxic Sigil",
+            "Black Mamba",
+            "Caustic Solvent"
+          ]
+        },
+        {
+          "name": "主动减速",
+          "items": [
+            "Bat",
+            "Log Trap",
+            "Worry Wart"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Black Mamba", "Worry Wart", "Lichen"], "plan": "利用已有毒与成长过渡，不在前期强求黄金陷阱藤。"},
-        {"key": "mid", "items": ["Worry Wart", "Black Mamba", "Bat", "Caustic Solvent", "Ghillie Suit"], "plan": "补成长与防御，腐蚀溶剂还需考虑弹药限制。"},
-        {"key": "late", "items": ["Trapvine", "Toxic Sigil", "Bat", "Forest Cloak", "Caustic Solvent", "Waterskin"], "plan": "兼顾主动减速和存活时间；毒符印的成长仍需要暴怒启动。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Black Mamba",
+            "Worry Wart"
+          ],
+          "core_items": [
+            "Black Mamba",
+            "Worry Wart"
+          ],
+          "optional_items": [
+            {
+              "name": "Lichen",
+              "use": "补毒系被动增益",
+              "note": "补已有毒组件的被动增益，不能用它替代全部主动毒输出；具体属性以本机卡面为准。",
+              "replaces": []
+            },
+            {
+              "name": "Drowsdrop",
+              "use": "毒减速 · 己方减速装填",
+              "note": "自带剧毒与减速，但有弹药；己方物品减速它时才装填，不能把敌方减速当作装填资源。",
+              "replaces": []
+            },
+            {
+              "name": "Security Blanket",
+              "use": "防御 · 需受减控",
+              "note": "给自身安排减速或冻结触发，补治疗、护盾与怒火。",
+              "replaces": []
+            },
+            {
+              "name": "Dryad",
+              "use": "补治疗",
+              "note": "需要存活时间让毒生效时补治疗，别挤掉所有主动毒输出。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "左邻需有冷却的主动物品，兼顾治疗和触发频率。",
+              "replaces": []
+            }
+          ],
+          "plan": "先保留能打的黑曼巴与忧虑疣蛙，不在前期强求黄金起步的陷阱藤。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Worry Wart",
+            "Black Mamba",
+            "Bat"
+          ],
+          "core_items": [
+            "Worry Wart",
+            "Black Mamba"
+          ],
+          "optional_items": [
+            {
+              "name": "Caustic Solvent",
+              "use": "剧毒成长 · 有弹药",
+              "note": "补剧毒成长；有弹药限制，先确认能否持续发挥。",
+              "replaces": []
+            },
+            {
+              "name": "Ghillie Suit",
+              "use": "防御与减速联动",
+              "note": "缺防御时选用，减速需要实际命中对应目标。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Blind",
+              "use": "补防御",
+              "note": "毒成长已具备而存活时间不足时选用。",
+              "replaces": []
+            },
+            {
+              "name": "Security Blanket",
+              "use": "防御 · 需受减控",
+              "note": "自身受到减速或冻结才触发相应怒火收益，安排实际作用位置。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在主动毒或减速组件右侧，兼顾出手与治疗。",
+              "replaces": []
+            }
+          ],
+          "plan": "蝙蝠补主动减速，保留毒输出与成长；按缺口加防御或续航。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Trapvine",
+            "Toxic Sigil",
+            "Bat"
+          ],
+          "core_items": [
+            "Trapvine",
+            "Toxic Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Forest Cloak",
+              "use": "生命与防御",
+              "note": "毒需要时间积累，缺生存时补生命支持。",
+              "replaces": []
+            },
+            {
+              "name": "Caustic Solvent",
+              "use": "剧毒成长 · 有弹药",
+              "note": "符印之外补成长，但仍要考虑弹药和装填。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "左邻需是可充能的主动物品，不把被动符印当作充能目标。",
+              "replaces": []
+            },
+            {
+              "name": "Black Mamba",
+              "use": "补剧毒成长",
+              "note": "现有黑曼巴已经成长时可保留，先比较替换后实际毒量。",
+              "replaces": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "控制 · 需暴怒",
+              "note": "黄金起步的治疗冻结组件，额外冻结目标依赖暴怒，不算开局必拿。",
+              "replaces": []
+            },
+            {
+              "name": "Log Trap",
+              "use": "开场控制 · 暴怒续触",
+              "note": "可替换蝙蝠做开场控制，之后需暴怒才可再触发；不要把它当作持续主动减速。",
+              "replaces": [
+                "Bat"
+              ]
+            }
+          ],
+          "plan": "19.0 触发减速会给陷阱藤充能；毒符印用剧毒获得怒火，再由暴怒触发成长。"
+        }
       ],
       "pivot": "先保留能打赢的毒组件，拿到陷阱藤后再比较完整替换收益。",
       "caution": "19.0 陷阱藤为黄金起步，减速触发的是充能；旧版直接叠毒说明已弃用。",
       "skills": "剧毒成长、减速控制与续航；不要把未到手的符印算成当前成长。"
     },
     {
-      "id": "health", "name": "生命 · 武器成长", "anchors": ["Runic Claymore", "Wild Bear", "Lost Blade"], "sources": ["health", "patch19"],
-      "summary": "先保持过渡战力，拿到生命关联武器后，再把生命、暴击和出手频率一起补齐。",
+      "id": "health",
+      "name": "生命 · 武器成长",
+      "anchors": [
+        "Runic Claymore",
+        "Wild Bear"
+      ],
+      "sources": [
+        "health",
+        "patch19"
+      ],
       "roles": [
-        {"name": "生命武器", "items": ["Runic Claymore", "Wild Bear", "Lost Blade"]},
-        {"name": "生命支持", "items": ["Hidden Lake", "Forest Cloak"]},
-        {"name": "暴击与加速", "items": ["Hunter's Journal", "Flying Squirrel", "Messenger Sparrow", "Hunting Hawk"]}
+        {
+          "name": "生命武器",
+          "items": [
+            "Runic Claymore",
+            "Wild Bear"
+          ]
+        },
+        {
+          "name": "生命支持",
+          "items": [
+            "Hidden Lake",
+            "Forest Cloak"
+          ]
+        },
+        {
+          "name": "暴击与加速",
+          "items": [
+            "Hunter's Journal",
+            "Flying Squirrel",
+            "Messenger Sparrow",
+            "Hunting Hawk"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Spear", "Flying Squirrel", "Hunting Knife", "Hunter's Journal"], "plan": "用伙伴与长矛过渡，生命武器未出现前避免囤太多被动牌。"},
-        {"key": "mid", "items": ["Wild Bear", "Forest Cloak", "Hunting Hawk", "Hunter's Journal", "Flying Squirrel"], "plan": "生命武器到手后，保留可复用的暴击、加速和防御。"},
-        {"key": "late", "items": ["Runic Claymore", "Hidden Lake", "Flying Squirrel", "Messenger Sparrow", "Hunter's Journal", "Snowshoes"], "plan": "同时检查暴击、生命与抗控制；隐秘之湖的冷却效果需要邻接和半血条件。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Spear",
+            "Flying Squirrel",
+            "Hunter's Journal"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "武器输出与伙伴加速",
+              "note": "补武器输出和伙伴加速，不把猎刀当作怒火来源。",
+              "replaces": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "加速非飞行目标",
+              "note": "加速非飞行物品并使其飞行，已有飞行时注意目标变化。",
+              "replaces": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "副输出 · 需怒火",
+              "note": "获得怒火时充能的伙伴武器；与实际怒火来源搭配。",
+              "replaces": []
+            },
+            {
+              "name": "Runed Amulet",
+              "use": "补武器战斗内成长",
+              "note": "补当前武器伤害成长，生命武器到手前仍由过渡武器承担输出。",
+              "replaces": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接武器补怒火",
+              "note": "相邻武器出手时获得怒火；进入暴怒时，相邻武器获得持续到本场战斗结束的伤害增益。",
+              "replaces": []
+            }
+          ],
+          "plan": "长矛负责输出，飞鼠放在主力左侧；日志作为后续可复用的支持组件。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Wild Bear",
+            "Forest Cloak",
+            "Hunter's Journal"
+          ],
+          "core_items": [
+            "Wild Bear"
+          ],
+          "optional_items": [
+            {
+              "name": "Flying Squirrel",
+              "use": "主力定向加速",
+              "note": "放在野熊左侧，加速实际主力。",
+              "replaces": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "加速非飞行目标",
+              "note": "可以加速尚未飞行的野熊并使其飞行，已在飞行时注意目标变化。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Pack",
+              "use": "生命暴击 · 需仓库",
+              "note": "可替换森林斗篷；背包从仓库继承物品类型，需经营仓库类型数量。",
+              "replaces": [
+                "Forest Cloak"
+              ]
+            },
+            {
+              "name": "Beast Call",
+              "use": "伙伴及邻接加速",
+              "note": "野熊是伙伴，可接受兽笛加速；兽笛本身不提供怒火，仍需实际暴怒来源。",
+              "replaces": []
+            },
+            {
+              "name": "Snowshoes",
+              "use": "抗冻结 · 邻接补怒火",
+              "note": "相邻物品受到的冻结时间减半，使用相邻物品获得怒火；需要将要保护的主力放在相邻位置。",
+              "replaces": []
+            }
+          ],
+          "plan": "野熊按最大生命造成伤害，暴怒还能成长最大生命；补齐生命、频率与启动。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Runic Claymore",
+            "Hidden Lake",
+            "Hunter's Journal",
+            "Flying Squirrel"
+          ],
+          "core_items": [
+            "Runic Claymore",
+            "Hidden Lake"
+          ],
+          "optional_items": [
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能与加速",
+              "note": "飞鼠先让主力飞行，麻雀再给其他飞行物品充能；不默认已形成完整循环。",
+              "replaces": []
+            },
+            {
+              "name": "Snowshoes",
+              "use": "抗冻结 · 邻接补怒火",
+              "note": "相邻物品受到的冻结时间减半，使用相邻物品获得怒火；需要将要保护的主力放在相邻位置。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Pack",
+              "use": "生命暴击 · 需仓库",
+              "note": "可替换隐秘之湖，需仓库提供多种物品类型；换后会失去湖的邻接冷却支持。",
+              "replaces": [
+                "Hidden Lake"
+              ]
+            },
+            {
+              "name": "Forest Cloak",
+              "use": "生命支持替代",
+              "note": "可替换隐秘之湖补生命支持，换后没有湖的邻接冷却效果。",
+              "replaces": [
+                "Hidden Lake"
+              ]
+            },
+            {
+              "name": "Wild Bear",
+              "use": "主力替代 · 需暴怒",
+              "note": "替换符文阔剑走野熊生命成长；野熊还需暴怒启动，不直接照搬阔剑的启动条件。",
+              "replaces": [
+                "Runic Claymore"
+              ]
+            },
+            {
+              "name": "Beast Call",
+              "use": "加速 · 需伙伴邻接",
+              "note": "可替换飞鼠：主力需是伙伴，或与被加速的伙伴相邻；符文阔剑本身不是伙伴。",
+              "replaces": [
+                "Flying Squirrel"
+              ]
+            }
+          ],
+          "plan": "飞鼠位于主力左侧，隐秘之湖照顾邻接与半血条件；失落之刃走单主动物品体系，不能直接混入。"
+        }
       ],
       "pivot": "以实际持有生命武器为信号，再补充生命、暴击与出手频率；未拿到武器时先保持当前战力。",
       "caution": "失落之刃另走单主动物品路线，不能把其他有冷却的物品照搬进去；阔剑示例不适用于它。",
       "skills": "最大生命、暴击、主力加速或保护；怒火投资按武器的实际需求决定。"
     },
     {
-      "id": "aurora", "name": "极光 · 治疗护盾", "anchors": ["Aurora Vista"], "sources": ["meta18", "patch19"],
-      "summary": "以治疗转护盾，补暴击成长与怒火，再考虑雪魂精灵的控制。",
+      "id": "aurora",
+      "name": "极光 · 治疗护盾",
+      "anchors": [
+        "Aurora Vista"
+      ],
+      "sources": [
+        "meta18",
+        "patch19"
+      ],
       "roles": [
-        {"name": "转换核心", "items": ["Aurora Vista"]},
-        {"name": "治疗频率", "items": ["Waterskin", "Stretch Pants", "Dryad"]},
-        {"name": "暴击怒火", "items": ["Wolf Mask", "Eagle Sigil", "Hunter's Journal"]}
+        {
+          "name": "转换核心",
+          "items": [
+            "Aurora Vista"
+          ]
+        },
+        {
+          "name": "治疗频率",
+          "items": [
+            "Waterskin",
+            "Stretch Pants",
+            "Dryad"
+          ]
+        },
+        {
+          "name": "暴击怒火",
+          "items": [
+            "Wolf Mask",
+            "Eagle Sigil",
+            "Hunter's Journal"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Stretch Pants", "Waterskin", "Dryad"], "plan": "先用治疗护盾稳住，同时保留足够输出，不急着完全放弃武器。"},
-        {"key": "mid", "items": ["Aurora Vista", "Stretch Pants", "Waterskin", "Wolf Mask", "Firefly Lantern"], "plan": "核心到手再测试治疗频率；狼面具要照顾相邻核心的暴击。"},
-        {"key": "late", "items": ["Aurora Vista", "Snow Wisp", "Eagle Sigil", "Wolf Mask", "Waterskin", "Hunter's Journal"], "plan": "确认续航和控制能成立，再换掉输出；不要假定一定能无限冻结。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Spear",
+            "Stretch Pants",
+            "Dryad"
+          ],
+          "core_items": [
+            "Spear",
+            "Stretch Pants"
+          ],
+          "optional_items": [
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在会出手的主动物品右侧提供治疗与充能。",
+              "replaces": []
+            },
+            {
+              "name": "Firefly Lantern",
+              "use": "补灼烧过渡输出",
+              "note": "过渡输出不足时选用，极光核心未到手前仍要维持能打的组合。",
+              "replaces": []
+            },
+            {
+              "name": "Security Blanket",
+              "use": "防御 · 需受减控",
+              "note": "有可作用到它的减速或冻结时补怒火和防御。",
+              "replaces": []
+            },
+            {
+              "name": "Wolf Mask",
+              "use": "邻接暴击 · 需条件",
+              "note": "为后续极光提供暴击支持；相邻目标和触发条件按当前卡面核对。",
+              "replaces": []
+            }
+          ],
+          "plan": "先用长矛保持输出，弹力裤与树精防御过渡；没有极光之景时不算成型。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Aurora Vista",
+            "Stretch Pants",
+            "Wolf Mask"
+          ],
+          "core_items": [
+            "Aurora Vista"
+          ],
+          "optional_items": [
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在有冷却的治疗组件右侧，提高治疗频率。",
+              "replaces": []
+            },
+            {
+              "name": "Dryad",
+              "use": "补治疗频率",
+              "note": "缺治疗触发时选用，不默认每次治疗都足以抵挡爆发。",
+              "replaces": []
+            },
+            {
+              "name": "Firefly Lantern",
+              "use": "保留过渡输出",
+              "note": "极光续航尚未稳定时保留输出，避免只剩防御组件。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Journal",
+              "use": "补暴击支持",
+              "note": "需要更多暴击支持时选用，优先保证极光的核心联动。",
+              "replaces": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "治疗冻结 · 需暴怒",
+              "note": "黄金起步的控制组件，额外冻结目标需要暴怒。",
+              "replaces": []
+            }
+          ],
+          "plan": "极光之景到手后补治疗与暴击；狼面具要照顾相邻的实际目标。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Aurora Vista",
+            "Wolf Mask",
+            "Eagle Sigil"
+          ],
+          "core_items": [
+            "Aurora Vista"
+          ],
+          "optional_items": [
+            {
+              "name": "Snow Wisp",
+              "use": "治疗冻结 · 需暴怒",
+              "note": "补治疗和冻结控制，额外目标依赖暴怒；不能假定永久冻结。",
+              "replaces": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "放在主动治疗物品右侧；不能充能无冷却的被动物品。",
+              "replaces": []
+            },
+            {
+              "name": "Hunter's Journal",
+              "use": "补暴击支持",
+              "note": "极光的治疗收益与暴击有关，按当前暴击来源选择。",
+              "replaces": []
+            },
+            {
+              "name": "Dryad",
+              "use": "补治疗频率",
+              "note": "缺持续治疗时补充，仍需评估爆发承受能力。",
+              "replaces": []
+            },
+            {
+              "name": "Stretch Pants",
+              "use": "补治疗与护盾",
+              "note": "现有弹力裤品质与防御收益仍够时保留，暴怒多重释放需实际启动。",
+              "replaces": []
+            }
+          ],
+          "plan": "确认治疗、护盾和控制可以持续，再换掉过渡输出；优先补真实短板。"
+        }
       ],
       "pivot": "没有极光之景时只算防御过渡，有核心后再检查治疗与暴击组件。",
       "caution": "防御组合也可能被爆发或成长压过。19.0 雪魂精灵为黄金起步，不把它当开局必备牌。",
       "skills": "治疗触发、暴击与怒火启动；保命和控制按当前短板取舍。"
     },
     {
-      "id": "burn", "name": "灼烧 · 充能暴怒", "anchors": ["Tinderbox", "Burn Scar", "Flame Sigil", "Geyser"], "sources": ["burn", "patch19"],
-      "summary": "用便宜灼烧与频繁触发争取节奏，后续是否转型取决于成长和续航。",
+      "id": "burn",
+      "name": "灼烧 · 充能暴怒",
+      "anchors": [
+        "Tinderbox",
+        "Burn Scar",
+        "Flame Sigil",
+        "Geyser"
+      ],
+      "sources": [
+        "burn",
+        "patch19"
+      ],
       "roles": [
-        {"name": "灼烧输出", "items": ["Tinderbox", "Signal Fire", "Firefly Lantern", "Geyser"]},
-        {"name": "灼烧成长", "items": ["Burn Scar", "Flame Sigil"]},
-        {"name": "频率与治疗", "items": ["Dryad", "Waterskin", "Beast Call"]}
+        {
+          "name": "灼烧输出",
+          "items": [
+            "Tinderbox",
+            "Signal Fire",
+            "Firefly Lantern",
+            "Geyser"
+          ]
+        },
+        {
+          "name": "灼烧成长",
+          "items": [
+            "Burn Scar",
+            "Flame Sigil"
+          ]
+        },
+        {
+          "name": "频率与治疗",
+          "items": [
+            "Dryad",
+            "Waterskin",
+            "Beast Call"
+          ]
+        }
       ],
       "stages": [
-        {"key": "early", "items": ["Tinderbox", "Firefly Lantern", "Dryad", "Waterskin"], "plan": "先补即时灼烧和触发频率，少为遥远的成型牌付费。"},
-        {"key": "mid", "items": ["Tinderbox", "Signal Fire", "Dryad", "Waterskin", "Burn Scar", "Firefly Lantern"], "plan": "已有输出后补成长；新卡不能挤掉整个充能链。"},
-        {"key": "late", "items": ["Tinderbox", "Flame Sigil", "Geyser", "Dryad", "Waterskin", "Snow Wisp", "Firefly Lantern"], "plan": "19.0 间歇泉看治疗与暴怒联动；成长不足时比较生命或控制转型。"}
+        {
+          "key": "early",
+          "base_items": [
+            "Tinderbox",
+            "Dryad",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Tinderbox"
+          ],
+          "optional_items": [
+            {
+              "name": "Firefly Lantern",
+              "use": "补早期灼烧",
+              "note": "补即时灼烧与过渡战力，后期是否保留再看成长。",
+              "replaces": []
+            },
+            {
+              "name": "Torch",
+              "use": "灼烧 · 需暴怒",
+              "note": "进入暴怒时翻倍自身灼烧，先确认怒火来源能启动。",
+              "replaces": []
+            },
+            {
+              "name": "Spear",
+              "use": "补早期武器输出",
+              "note": "灼烧不足以赢当日战斗时保留便宜武器输出，不锁定终局路线。",
+              "replaces": []
+            },
+            {
+              "name": "Flare",
+              "use": "充能灼烧 · 有弹药",
+              "note": "补灼烧并充能其他物品，但有弹药限制，不能当作无限充能。",
+              "replaces": []
+            }
+          ],
+          "plan": "火绒盒负责灼烧，树精和水囊补治疗；水囊左邻必须是能出手的主动物品。"
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Tinderbox",
+            "Burn Scar",
+            "Dryad",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Tinderbox",
+            "Burn Scar"
+          ],
+          "optional_items": [
+            {
+              "name": "Signal Fire",
+              "use": "补灼烧输出",
+              "note": "成长已有后补另一输出，不能挤掉全部治疗和充能组件。",
+              "replaces": []
+            },
+            {
+              "name": "Firefly Lantern",
+              "use": "保留过渡灼烧",
+              "note": "已有较高收益时可继续使用，按实际输出决定是否替换。",
+              "replaces": []
+            },
+            {
+              "name": "Flare",
+              "use": "充能灼烧 · 有弹药",
+              "note": "有装填或只需前几次爆发时选用，弹药耗尽后不能继续充能。",
+              "replaces": []
+            },
+            {
+              "name": "Beast Call",
+              "use": "加速 · 需伙伴邻接",
+              "note": "加速树精等伙伴及其相邻物品；要加速非伙伴，必须把它放在伙伴旁。",
+              "replaces": []
+            },
+            {
+              "name": "Torch",
+              "use": "灼烧 · 需暴怒",
+              "note": "暴怒启动稳定时补输出，进入暴怒才翻倍自身灼烧。",
+              "replaces": []
+            }
+          ],
+          "plan": "已有火绒盒后补灼烧疤痕成长，再按剩余格子添加输出或频率，保留治疗链。"
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Tinderbox",
+            "Flame Sigil",
+            "Geyser",
+            "Dryad"
+          ],
+          "core_items": [
+            "Tinderbox",
+            "Flame Sigil",
+            "Geyser"
+          ],
+          "optional_items": [
+            {
+              "name": "Waterskin",
+              "use": "治疗 · 充能左邻",
+              "note": "提供治疗触发，左邻需是有冷却的主动物品，不能把间歇泉当主动充能目标。",
+              "replaces": []
+            },
+            {
+              "name": "Snow Wisp",
+              "use": "治疗冻结 · 需暴怒",
+              "note": "补治疗与冻结，额外冻结目标仍需暴怒。",
+              "replaces": []
+            },
+            {
+              "name": "Firefly Lantern",
+              "use": "补持续灼烧",
+              "note": "灼烧输出仍不足且有空格时保留或补充，不拆成长和治疗链。",
+              "replaces": []
+            },
+            {
+              "name": "Burn Scar",
+              "use": "成长替代 · 需另补怒火",
+              "note": "可替换烈焰符印作为成长方案，但会失去符印的灼烧转怒火；必须另补怒火来源。",
+              "replaces": [
+                "Flame Sigil"
+              ]
+            },
+            {
+              "name": "Flare",
+              "use": "充能灼烧 · 有弹药",
+              "note": "补短时充能爆发，必须考虑弹药耗尽后的贡献。",
+              "replaces": []
+            },
+            {
+              "name": "Signal Fire",
+              "use": "补灼烧输出",
+              "note": "按剩余格子补输出，仍优先保证间歇泉所需的治疗和暴怒。",
+              "replaces": []
+            }
+          ],
+          "plan": "烈焰符印把灼烧转为怒火；间歇泉从治疗成长，进入暴怒时造成最大生命关联灼烧。"
+        }
       ],
       "pivot": "有成套灼烧和成长则继续；只有开局灼烧牌时不为旧攻略强行锁定终局。",
       "caution": "间歇泉已重做，旧攻略的自动出手模型不适用；需要治疗与暴怒来源。",

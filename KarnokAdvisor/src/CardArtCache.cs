@@ -15,8 +15,18 @@ internal sealed class CardArtCache : IDisposable
     private readonly Queue<Entry> _pending = new Queue<Entry>();
     private readonly Action<string> _warn;
     private bool _disposed;
+    private string _catalogDigest = "";
 
     internal CardArtCache(Action<string> warn) => _warn = warn;
+
+    internal void UseCatalog(string digest)
+    {
+        if (_disposed || digest.Length == 0 || digest == _catalogDigest) return;
+        foreach (var entry in _entries.Values) Release(entry);
+        _pending.Clear();
+        _entries.Clear();
+        _catalogDigest = digest;
+    }
 
     internal Texture? Get(string key, bool request, out bool unavailable)
     {

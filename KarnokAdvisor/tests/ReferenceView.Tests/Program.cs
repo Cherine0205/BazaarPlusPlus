@@ -6,12 +6,12 @@ JObject Snapshot() => new JObject { ["snapshot_id"] = "current", ["status"] = "l
     ["state_type"] = "ChoiceState", ["board"] = new JArray(), ["stash"] = new JArray(), ["unlocked_slots"] = new JArray(0, 1), ["captured_at_utc"] = now.ToString("O") };
 JObject Guide() => new JObject { ["kind"] = ReferenceViewState.DocumentKind, ["status"] = "live", ["snapshot_id"] = "current", ["generated_at_utc"] = now.ToString("O"),
     ["reference"] = new JObject { ["live"] = true, ["stage"] = "early", ["matched_route_id"] = "ammo", ["routes"] = new JArray(
-        new JObject { ["id"] = "friends", ["stages"] = new JArray(new JObject { ["key"] = "early", ["items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }) }, new JObject { ["key"] = "late", ["items"] = new JArray() }) },
-        new JObject { ["id"] = "ammo", ["stages"] = new JArray(new JObject { ["key"] = "early", ["items"] = new JArray() }) }) } };
+        new JObject { ["id"] = "friends", ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }) }, new JObject { ["key"] = "late", ["base_items"] = new JArray() }) },
+        new JObject { ["id"] = "ammo", ["stages"] = new JArray(new JObject { ["key"] = "early", ["base_items"] = new JArray() }) }) } };
 var count = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception(name); count++; Console.WriteLine("PASS " + name); }
 Check(ReferenceViewState.IsLive(Guide(), Snapshot(), now), "Fresh matching guide is live");
-foreach (var kind in new[] { "legacy-recommendation", "" })
+foreach (var kind in new[] { "legacy-recommendation", "karnok-build-reference-v2", "" })
 {
     var doc = Guide(); doc["kind"] = kind;
     Check(!ReferenceViewState.IsLive(doc, Snapshot(), now), "Old document kind cannot supply ownership");
@@ -46,17 +46,36 @@ view.MatchOwned(); view.MatchDay(); view.Synchronize(reference, true);
 Check(view.RouteId == "ammo" && view.StageKey == "mid", "Explicit follow controls restore matching");
 view.SelectRoute("friends"); view.SelectStage("early"); view.SelectCard("spear");
 var updated = (JObject)Guide()["reference"]!;
-updated["routes"]![0]!["stages"]![0]!["items"]![0]!["owned"] = "仓库";
+updated["routes"]![0]!["stages"]![0]!["base_items"]![0]!["owned"] = "仓库";
 view.Synchronize(updated, true);
 Check((string?)view.Card(view.Stage(view.Route(updated)!)!)?["owned"] == "仓库", "Detail reprojects current card by identity");
 view.SelectStage("late");
 Check(view.CardId == "", "Phase change closes stale card detail");
 view.SelectStage("early"); view.SelectCard("spear");
-updated["routes"]![0]!["stages"]![0]!["items"] = new JArray();
+updated["routes"]![0]!["stages"]![0]!["base_items"] = new JArray();
 view.Synchronize(updated, true);
 Check(view.CardId == "", "Catalog update closes detail when its identity disappears");
 view.SelectCard("spear"); view.SelectRoute("ammo");
 Check(view.CardId == "", "Route change closes stale card detail");
 view.SelectStage("late"); view.Synchronize(updated, false);
 Check(view.RouteId == "ammo" && view.StageKey == "late", "Disconnect preserves browse choices");
+var components = new JObject { ["key"] = "early",
+    ["base_items"] = new JArray(new JObject { ["template_id"] = "spear", ["owned"] = "场上" }, new JObject { ["template_id"] = "pants", ["owned"] = "仓库" }),
+    ["optional_items"] = new JArray(new JObject { ["template_id"] = "wolf", ["owned"] = "场上", ["note"] = "current condition" }) };
+Check(ReferenceViewState.OwnedBaseCount(components, true) == 1, "Base progress excludes optional cards and stash");
+Check(ReferenceViewState.OwnedBaseCount(components, false) == null, "Disconnect masks base progress");
+view.SelectCard("wolf");
+Check((string?)view.Card(components)?["note"] == "current condition", "Optional detail resolves by canonical identity");
+var changedComponents = (JObject)components.DeepClone();
+changedComponents["optional_items"]![0]!["owned"] = "仓库";
+changedComponents["optional_items"]![0]!["note"] = "updated condition";
+Check((string?)view.Card(changedComponents)?["owned"] == "仓库" && (string?)view.Card(changedComponents)?["note"] == "updated condition", "Optional detail reprojects latest ownership and conditions");
+view.SelectRoute("friends"); view.SelectStage("early"); view.SelectCard("wolf");
+var optionalReference = (JObject)Guide()["reference"]!;
+optionalReference["routes"]![0]!["stages"] = new JArray(components);
+view.Synchronize(optionalReference, true);
+Check(view.CardId == "wolf", "Optional selection survives a matching live refresh");
+components["optional_items"] = new JArray();
+view.Synchronize(optionalReference, true);
+Check(view.CardId == "", "Removing optional identity closes detail");
 Console.WriteLine($"{count} reference view checks passed.");

@@ -62,7 +62,7 @@ class Catalog:
             if ids is None or index in ids:
                 result.append(self.localize(tooltip.get("Content")))
         # Keep unsupported values visibly unknown rather than silently deleting them.
-        return [re.sub(r"\{ability\.[^}]+\}", "［数值待确认］", s) for s in result if s]
+        return [re.sub(r"\{(?:ability|aura)\.[^}]+\}", "［数值待确认］", s) for s in result if s]
 
 
 def read_json(path: Path) -> dict:
