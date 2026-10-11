@@ -168,7 +168,7 @@ internal sealed class AdvisorPanel : IDisposable
         Label(new Rect(203, 25, Width - 323, 20), _live ? "实时持有" : "持有未核对", _small, _live ? Green : Amber);
         if (GUI.Button(new Rect(Width - 112, 20, 64, 27), "收起", _smallButton)) _compact = true;
         if (GUI.Button(new Rect(Width - 39, 20, 22, 27), "×", _smallButton)) _visible = false;
-        if (GUI.Button(new Rect(Padding, 56, 106, 25), (_selection.FollowOwned ? "◆ " : "") + "匹配持有", _smallButton)) _selection.MatchOwned();
+        if (GUI.Button(new Rect(Padding, 56, 106, 25), _selection.MatchOwnedLabel(_reference, _live), _smallButton)) _selection.MatchOwned();
         if (GUI.Button(new Rect(Padding + 114, 56, 106, 25), (_selection.FollowDay ? "◆ " : "") + "跟随天数", _smallButton)) _selection.MatchDay();
         if (GUI.Button(new Rect(Width - 110, 56, 90, 25), "F10 同步", _smallButton)) _refresh?.Invoke();
         var routes = _reference?["routes"] as JArray;
@@ -322,8 +322,10 @@ internal sealed class AdvisorPanel : IDisposable
         return y;
     }
 
-    private float CardHeight(JToken item, float width) => 156 + TextHeight(_tileMeta, CardUse(item), width - 14)
+    private float CardHeight(JToken item, float width) => 156 + TagHeaderHeight(item, width - 14) + TextHeight(_tileMeta, CardUse(item), width - 14)
         + (ReplacementNames(item).Length > 0 ? TextHeight(_tileMeta, "换：" + ReplacementNames(item), width - 14) + 4 : 0);
+
+    private float TagHeaderHeight(JToken item, float width) => TextHeight(_tileMeta, ReferenceViewState.TagText(item), width) + 4;
 
     private static string CardUse(JToken item) => (string?)item["group"] == "optional" ? Value(item["use"]) : Value(item["role"]);
     private static string ReplacementNames(JToken item) => string.Join("、", (item["replaces"] as JArray ?? new JArray()).Select(card => Value(card["name"])));
@@ -341,18 +343,20 @@ internal sealed class AdvisorPanel : IDisposable
     {
         var core = (bool?)item["core"] == true;
         if (GUI.Button(tile, GUIContent.none, core ? _coreCard : _card)) _selection.SelectCard((string?)item["template_id"] ?? "");
-        var art = new Rect(tile.x + 7, tile.y + 7, tile.width - 14, 80);
+        var tagHeight = TagHeaderHeight(item, tile.width - 14);
+        Label(new Rect(tile.x + 7, tile.y + 7, tile.width - 14, tagHeight - 4), ReferenceViewState.TagText(item), _tileMeta, Muted, TextAnchor.UpperCenter);
+        var art = new Rect(tile.x + 7, tile.y + 7 + tagHeight, tile.width - 14, 80);
         DrawArt(art, item);
         var coreLabel = (string?)item["core_label"] ?? "";
         if (coreLabel.Length > 0) Badge(new Rect(art.x + 2, art.y + 2, coreLabel.Length * 11 + 8, 18), coreLabel, Gold, true);
         var owned = _live ? (string?)item["owned"] : null;
         if (owned == "场上" || owned == "仓库") Badge(new Rect(art.xMax - 35, art.yMax - 20, 33, 18), owned, owned == "场上" ? Green : Amber, true);
-        Label(new Rect(tile.x + 7, tile.y + 94, tile.width - 14, 30), Value(item["name"]), _tileTitle, Ivory, TextAnchor.UpperCenter);
-        Label(new Rect(tile.x + 7, tile.y + 126, tile.width - 14, 17), Value(item["starting_tier"]) + "起 · " + Value(item["span"]) + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
+        Label(new Rect(tile.x + 7, tile.y + 94 + tagHeight, tile.width - 14, 30), Value(item["name"]), _tileTitle, Ivory, TextAnchor.UpperCenter);
+        Label(new Rect(tile.x + 7, tile.y + 126 + tagHeight, tile.width - 14, 17), Value(item["starting_tier"]) + "起 · " + Value(item["span"]) + "格", _tileMeta, Muted, TextAnchor.UpperCenter);
         var useHeight = TextHeight(_tileMeta, CardUse(item), tile.width - 14);
-        Label(new Rect(tile.x + 7, tile.y + 149, tile.width - 14, useHeight), CardUse(item), _tileMeta, core ? Gold : Cyan, TextAnchor.UpperCenter);
+        Label(new Rect(tile.x + 7, tile.y + 149 + tagHeight, tile.width - 14, useHeight), CardUse(item), _tileMeta, core ? Gold : Cyan, TextAnchor.UpperCenter);
         var replaces = ReplacementNames(item);
-        if (replaces.Length > 0) Label(new Rect(tile.x + 7, tile.y + 153 + useHeight, tile.width - 14, tile.height - 155 - useHeight), "换：" + replaces, _tileMeta, Amber, TextAnchor.UpperCenter);
+        if (replaces.Length > 0) Label(new Rect(tile.x + 7, tile.y + 153 + tagHeight + useHeight, tile.width - 14, tile.height - 155 - tagHeight - useHeight), "换：" + replaces, _tileMeta, Amber, TextAnchor.UpperCenter);
     }
 
     private void DrawDetail(Rect viewport, JObject card)
@@ -379,17 +383,19 @@ internal sealed class AdvisorPanel : IDisposable
         else details.Add(("基础组件" + ((string?)card["core_label"] is string label && label.Length > 0 ? " · " + label : ""), Gold, ""));
         var detailHeights = details.Select(line => TextHeight(_muted, line.Text, textWidth) + 10).ToArray();
         var heights = effects.Select(effect => TextHeight(_body, effect, textWidth) + 12).ToArray();
-        var total = 272 + detailHeights.Sum() + heights.Sum();
+        var tagHeight = TagHeaderHeight(card, 142);
+        var total = 272 + tagHeight + detailHeights.Sum() + heights.Sum();
         BeginScroll(viewport, width, total);
         if (GUI.Button(new Rect(0, 0, width, 28), "‹  返回阵容", _smallButton)) _selection.CloseCard();
-        DrawArt(new Rect(7, 42, 142, 142), card);
-        Label(new Rect(165, 44, width - 172, 55), Value(card["name"]), _heading, Gold);
-        Label(new Rect(165, 106, width - 172, 34), Value(card["role"]), _muted, Cyan);
-        Label(new Rect(165, 146, width - 172, 30), Value(card["starting_tier"]) + "起步 · " + Value(card["span"]) + "格", _muted, Muted);
+        Label(new Rect(7, 42, 142, tagHeight - 4), ReferenceViewState.TagText(card), _tileMeta, Muted, TextAnchor.UpperCenter);
+        DrawArt(new Rect(7, 42 + tagHeight, 142, 142), card);
+        Label(new Rect(165, 44 + tagHeight, width - 172, 55), Value(card["name"]), _heading, Gold);
+        Label(new Rect(165, 106 + tagHeight, width - 172, 34), Value(card["role"]), _muted, Cyan);
+        Label(new Rect(165, 146 + tagHeight, width - 172, 30), Value(card["starting_tier"]) + "起步 · " + Value(card["span"]) + "格", _muted, Muted);
         var owned = _live ? Value(card["owned"]) : "持有状态未核对";
         if (_live && (string?)card["owned_tier"] is string tier && tier.Length > 0) owned += " · 当前" + tier;
-        Badge(new Rect(0, 196, width, 28), owned, owned.StartsWith("场上", StringComparison.Ordinal) ? Green : Muted);
-        var y = 234f;
+        Badge(new Rect(0, 196 + tagHeight, width, 28), owned, owned.StartsWith("场上", StringComparison.Ordinal) ? Green : Muted);
+        var y = 234f + tagHeight;
         for (var n = 0; n < details.Count; n++)
         {
             DrawLine(details[n], new Rect(12, y, textWidth, detailHeights[n]));

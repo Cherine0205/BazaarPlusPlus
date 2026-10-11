@@ -79,13 +79,13 @@ class StrategyBook:
         template = self.templates.get(name)
         if not template:
             return {"name": name + "（模板未找到）", "known": False, "owned": "未核对", "span": None,
-                    "template_id": "", "art_key": "", "effects": []}
+                    "template_id": "", "art_key": "", "effects": [], "tags": None}
         card = self.catalog.template_card(template["Id"])
         on_board, in_stash = self.find(board, [name]), self.find(stash, [name])
         observed = next(iter(on_board or in_stash), {})
         return {"name": card["name"], "template_id": template["Id"], "known": True, "span": card["span"],
                 "starting_tier": TIER_ZH.get(card["tier"], card["tier"]), "art_key": template.get("ArtKey", ""),
-                "effects": self.catalog.texts(card),
+                "effects": self.catalog.texts(card), "tags": self.catalog.tags(card),
                 "owned": "未核对" if board is None or stash is None else "场上" if on_board else "仓库" if in_stash else "未持有",
                 "owned_tier": TIER_ZH.get(observed.get("tier"), observed.get("tier", ""))}
 

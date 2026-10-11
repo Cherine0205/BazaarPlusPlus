@@ -18,7 +18,7 @@ internal sealed class ReferenceViewState
     {
         var routes = reference["routes"] as JArray ?? new JArray();
         var routeId = RouteId;
-        if (FollowOwned && live) routeId = (string?)reference["matched_route_id"] ?? "";
+        if (FollowOwned && live && HasOwnedMatch(reference)) routeId = (string)reference["matched_route_id"]!;
         if (!routes.Any(r => (string?)r["id"] == routeId)) routeId = (string?)routes.First?["id"] ?? "";
         var stage = FollowDay && live ? (string?)reference["stage"] ?? StageKey : StageKey;
         if (routeId != RouteId || stage != StageKey) CardId = "";
@@ -34,6 +34,22 @@ internal sealed class ReferenceViewState
 
     internal void SelectRoute(string id) { if (id != RouteId) CardId = ""; RouteId = id; FollowOwned = false; }
     internal void SelectStage(string key) { if (key != StageKey) CardId = ""; StageKey = key; FollowDay = false; }
+    private static bool HasOwnedMatch(JObject? reference)
+    {
+        var id = (string?)reference?["matched_route_id"];
+        return !string.IsNullOrEmpty(id) && (reference?["routes"] as JArray)?.Any(route => (string?)route["id"] == id) == true;
+    }
+
+    internal string MatchOwnedLabel(JObject? reference, bool live) => !FollowOwned ? "匹配持有"
+        : !live ? "◆ 待同步" : HasOwnedMatch(reference) ? "◆ 匹配持有" : "◆ 等待核心";
+
+    internal static string TagText(JToken card)
+    {
+        if (!(card["tags"] is JArray tags)) return "标签未读取";
+        var labels = tags.Values<string>().Where(tag => !string.IsNullOrEmpty(tag)).Distinct().ToArray();
+        return labels.Length > 0 ? string.Join(" · ", labels) : "无标签";
+    }
+
     internal void MatchOwned() => FollowOwned = true;
     internal void MatchDay() => FollowDay = true;
     internal void SelectCard(string id) => CardId = id;

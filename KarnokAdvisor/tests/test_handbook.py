@@ -94,6 +94,20 @@ class ReferenceTests(unittest.TestCase):
                     self.assertTrue(item["role"])
                     self.assertEqual(item["owned"], "未核对")
 
+    def test_item_tags_use_native_type_translation_and_exclude_effect_keywords(self):
+        template = self.book.catalog.cards["Spear"]
+        template["Tags"] = ["Weapon", "Friend", "Weapon"]
+        template["HiddenTags"] = ["Damage", "Burn"]
+        self.book.catalog.translations.update({"18c83669920215a818638ad0e5421e4b": "武器", "930a91848917f92cf7e2f8d744fa4177": "伙伴"})
+        self.assertEqual(self.book.item("Spear")["tags"], ["武器", "伙伴"])
+
+    def test_item_tags_distinguish_no_type_from_unavailable_template_and_keep_unknown_types(self):
+        self.assertEqual(self.book.item("Toxic Sigil")["tags"], [])
+        self.book.catalog.cards["Spear"]["Tags"] = ["FutureType"]
+        self.assertEqual(self.book.item("Spear")["tags"], ["FutureType"])
+        self.book.templates["Shotgun"] = None
+        self.assertIsNone(self.book.item("Shotgun")["tags"])
+
     def test_optional_components_do_not_inflate_base_slots_or_become_phase_cores(self):
         guide = self.book.reference(state([card("Honey Badger")], stash=[card("Spear")]))
         friends = route(guide, "friends")["stages"][0]
@@ -357,6 +371,11 @@ class InstalledCatalogTests(unittest.TestCase):
         book = StrategyBook(Catalog())
         self.assertTrue(all(book.templates.values()))
         self.assertTrue(book.verified)
+        if book.catalog.translations:
+            self.assertEqual(book.item("Wild Bear")["tags"], ["武器", "伙伴"])
+            self.assertEqual(book.item("Waterskin")["tags"], ["食物"])
+            self.assertEqual(book.item("Hunter's Pack")["tags"], ["服饰"])
+        self.assertEqual(book.item("Toxic Sigil")["tags"], [])
         self.assertLessEqual(len({template["ArtKey"] for template in book.templates.values()}), 64)
         for result in book.reference({})["routes"]:
             self.assertTrue(result["sources"])

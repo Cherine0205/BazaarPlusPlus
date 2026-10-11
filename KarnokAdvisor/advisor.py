@@ -132,7 +132,7 @@ def serve(runtime, parent_pid=0, settings_path=ROOT / "settings.json", *, max_se
                 try:
                     atomic_json(runtime / "guide.json", make_document(book, snapshot, catalog_ok=catalog_ok))
                     atomic_json(runtime / "guide-heartbeat.json", {"kind": DOCUMENT_KIND, "pid": os.getpid(), "parent_pid": parent_pid,
-                                                                  "at": utc_now(), "version": "0.3.0"})
+                                                                  "at": utc_now(), "version": "0.3.1"})
                     last_write = now
                 except OSError as error:
                     logger.warning("Local guide publication deferred: %s", type(error).__name__)

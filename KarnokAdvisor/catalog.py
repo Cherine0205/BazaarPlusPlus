@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import closing
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -51,6 +52,12 @@ class Catalog:
         template = self.cards.get(template_id, {})
         return {"template_id": template_id, "tier": tier or template.get("StartingTier", "Bronze"),
                 "name": self.name(template_id), "span": SIZES.get(template.get("Size"))}
+
+    def tags(self, card: dict) -> list[str]:
+        template = self.cards.get(card.get("template_id"), {})
+        # Native tag translation keys are the MD5 of the English type name.
+        return [self.localize({"Key": hashlib.md5(tag.encode("utf-8"), usedforsecurity=False).hexdigest(), "Text": tag})
+                for tag in dict.fromkeys(template.get("Tags", []))]
 
     def texts(self, card: dict) -> list[str]:
         template = self.cards.get(card.get("template_id"), {})
