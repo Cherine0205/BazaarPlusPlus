@@ -127,7 +127,7 @@ seasonView.Synchronize(emptySeason, false);
 Check(seasonView.RouteId == "" && seasonView.Route(emptySeason) == null, "Empty season has no fabricated fallback route");
 seasonView.SelectSeason("unknown"); seasonView.Synchronize(seasonal, false);
 Check(seasonView.SeasonId == "s19", "Unknown season recovers to the declared default");
-foreach (var countCase in new[] { 0, 1, 4, 5, 8, 9, 12 })
+foreach (var countCase in new[] { 0, 1, 4, 5, 8, 9, 12, 13, 16 })
 {
     Check(ReferenceViewState.RouteRows(countCase) == (countCase + 3) / 4, "Wide route grid height for " + countCase);
     Check(ReferenceViewState.RouteRows(countCase, 420) == (countCase + 2) / 3, "Narrow route grid height for " + countCase);

@@ -1,9 +1,30 @@
 {
   "reviewed_at": "2026-10-12",
   "reviewed_patch": "19.0",
-  "verified_catalog_digest": "be7ab1b0d9ec7984aea473b82bfe105587bad9ddcca01fd9db8ca37b6f81f94b",
+  "verified_catalog_digest": "7e0cca0de3d846361831325d641d05e6a0f39661e17424b24264c326cd44dfab",
   "stage_note": "D1–3 / D4–7 / D8+ 是规划分段，不是卡牌出现日。基础组件是一种参考搭配；可选组件按需择取，不要求全部同时上场。",
   "sources": [
+    {
+      "id": "bili18_lines",
+      "title": "B站 · 二中风纪委员长 · S18行动线（2026-09-03）",
+      "date": "2026-09-03",
+      "url": "https://www.bilibili.com/video/BV1ydto6uEgw/?t=896",
+      "evidence": "已核对公开视频画面：前期行动线、终盘构筑；全被动陷阱藤是当时版本。阶段和站位按本机当前模板整理，不复刻历史数值。"
+    },
+    {
+      "id": "bili18_eagle",
+      "title": "B站 · 二中风纪委员长 · 鹰符狼面（2026-09-05 · 11:08）",
+      "date": "2026-09-05",
+      "url": "https://www.bilibili.com/video/BV1aZty6JEcd/?t=668",
+      "evidence": "已核对鹰符投石索、鹰符弹力裤、鹰符旅途石等构筑画面。收录鹰符与狼面具联动，未沿用作者历史强度排名和斩杀秒数。"
+    },
+    {
+      "id": "bili19_bear",
+      "title": "B站 · 无乐吾乐 · 面具双兽实战（2026-10-11）",
+      "date": "2026-10-11",
+      "url": "https://www.bilibili.com/video/BV13Rp36yE18/",
+      "evidence": "已核对实战画面：熊面具、信号弹、荒原恐兽、野熊、野猪面具。属于单局终盘样例；前中期与替换方案为当前机制适配，不代表实测胜率。"
+    },
     {
       "id": "patch19",
       "title": "官方 19.0 更新",
@@ -313,6 +334,7 @@
         "Boa Constrictor"
       ],
       "sources": [
+        "bili18_lines",
         "community",
         "selfslow",
         "patch19",
@@ -557,10 +579,12 @@
       "caution": "Radiant（辉耀）免疫减速，可能切断自减速链；缺续航时不能只堆触发速度。",
       "skills": "伤害成长、减速触发、暴击和充能；不要仅因名字含减速就购买。",
       "seasons": [
+        "s18",
         "s19"
       ],
       "season_notes": {
-        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。"
+        "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。",
+        "s18": "S18 · B站二中09-03终盘攻略；沿用该体系思路，界面组件按本机当前模板整理。"
       }
     },
     {
@@ -854,6 +878,7 @@
         "Toxic Sigil"
       ],
       "sources": [
+        "bili18_lines",
         "poison",
         "meta18",
         "patch19",
@@ -1101,6 +1126,24 @@
               ],
               "position_note": "可放原被替换组件的位置；占格变化后重新贴紧保留的关键邻居。失去的原卡效果不会随位置保留。",
               "fills_gap_after": []
+            },
+            {
+              "name": "Enervating Sigil",
+              "use": "减速产怒",
+              "note": "九月被动藤思路的当前变体；双方主动牌都会被自缓，换蝙蝠后少主动减速，主要依赖敌方出手触发藤。",
+              "replaces": [
+                "Bat"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Trail Markers",
+              "use": "抑制敌方充能",
+              "note": "战斗开始短时阻止敌方充能；不是己方怒火来源，不沿用历史攻略的必胜结论。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
             }
           ],
           "plan": "19.0 触发减速会给陷阱藤充能；毒符印用剧毒获得怒火，再由暴怒触发成长。",
@@ -1120,7 +1163,7 @@
       ],
       "season_notes": {
         "s19": "S19机制复核参考 · 卡面与占格使用本机当前版本。",
-        "s18": "S18攻略收录 · 卡面与占格仍使用本机当前版本。"
+        "s18": "S18 · 09-03B站/09-05攻略记录；早期全被动藤是历史形态，19.0陷阱藤已有主动冷却。"
       }
     },
     {
@@ -2076,6 +2119,26 @@
               "replaces": [],
               "position_note": "本体无固定邻接要求；放在外围，保留基础组件的关键邻接。",
               "fills_gap_after": []
+            },
+            {
+              "name": "Assault Sigil",
+              "use": "武器产怒",
+              "note": "九月攻略的突击熊方向：武器出手产怒，暴怒按生命爆发；替羽翼符印后失去飞行缩冷却。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunter's Pack",
+              "use": "生命与暴击",
+              "note": "替猎人日志，按仓库不同类型提供生命与暴击；只有实际持有的仓库类型才有收益。",
+              "replaces": [
+                "Hunter's Journal"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
             }
           ],
           "plan": "围绕野熊积累生命，保留怒火、频率与抗控。隐秘之湖的缩冷却只在半血以下生效。",
@@ -2133,15 +2196,18 @@
       "caution": "野熊成长需要进入暴怒；只有生命支持却没有输出频率时容易拖入后期。",
       "skills": "优先可靠启动与抗控；S19医者精准需实际治疗/回复才提供战斗内暴击。",
       "sources": [
+        "bili18_lines",
         "health",
         "patch19",
         "patch19mirror"
       ],
       "seasons": [
+        "s18",
         "s19"
       ],
       "season_notes": {
-        "s19": "S19机制复核衍生 · 从生命体系独立出野熊主力。"
+        "s19": "S19机制复核衍生 · 从生命体系独立出野熊主力。",
+        "s18": "S18 · B站二中09-03终盘攻略；沿用该体系思路，界面组件按本机当前模板整理。"
       }
     },
     {
@@ -2602,6 +2668,26 @@
               ],
               "position_note": "替换到飞鼠右侧。",
               "fills_gap_after": []
+            },
+            {
+              "name": "Eagle Sigil",
+              "use": "暴击怒火变体",
+              "note": "替羽翼符印后依靠真实暴击产怒，失去加速产怒；暴击尚低时不强换。",
+              "replaces": [
+                "Wing Sigil"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Wolf Mask",
+              "use": "暴击与首怒",
+              "note": "替喀斯特后少了伙伴/非武器出手的怒火与护盾；需要重排到巨蟒直接相邻。",
+              "replaces": [
+                "Karst"
+              ],
+              "position_note": "重排为飞鼠—巨蟒—狼面具；面具放在飞鼠外侧时不会给巨蟒暴击。",
+              "fills_gap_after": []
             }
           ],
           "plan": "森蚺按本场实际获得的怒火成长伤害，每次进入暴怒加多重；先解决启动，再追求叠层。",
@@ -2646,16 +2732,19 @@
       "caution": "启动慢时不要只为多重上限拆掉当前能赢的输出；需要抗控和实际怒火增量。",
       "skills": "优先战斗开始怒火与频率；缩怒与延怒按当前引擎实际周期取舍。",
       "sources": [
+        "bili18_lines",
         "karst",
         "selfslow",
         "patch19",
         "patch19mirror"
       ],
       "seasons": [
+        "s18",
         "s19"
       ],
       "season_notes": {
-        "s19": "S19机制复核衍生 · 森蚺累计怒火与反复暴怒路线。"
+        "s19": "S19机制复核衍生 · 森蚺累计怒火与反复暴怒路线。",
+        "s18": "S18 · B站二中09-03终盘攻略；沿用该体系思路，界面组件按本机当前模板整理。"
       }
     },
     {
@@ -3204,6 +3293,1013 @@
       ],
       "season_notes": {
         "s19": "S19新物品 · 毒转灼烧机制参考；需要另补频率与怒火。"
+      }
+    },
+    {
+      "id": "eagle_sling",
+      "name": "鹰符 · 投石索",
+      "anchors": [
+        "Giant Sling"
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Giant Sling"
+          ]
+        },
+        {
+          "name": "暴击怒火",
+          "items": [
+            "Wolf Mask",
+            "Eagle Sigil"
+          ]
+        },
+        {
+          "name": "频率与装填",
+          "items": [
+            "Flying Squirrel",
+            "Flare",
+            "Utility Belt",
+            "Messenger Sparrow"
+          ]
+        }
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Beast Tooth"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "过渡武器",
+              "note": "先保留能打的武器；长矛等共用过渡牌不锁定终局。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "伙伴过渡",
+              "note": "按当前战力补伙伴，拿到终局核心后再换。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击",
+              "note": "加速非飞行目标并使其飞行；已飞行的主力不再是其加速目标。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Flare",
+              "use": "群体充能",
+              "note": "信号弹从白银起步，只有两发弹药；它充能其他主动牌，本身不直接产怒。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先用长矛与兽牙过渡；金起步终端未到手时继续保留现有战力，不按天数强行转型。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Beast Tooth",
+                "target": "Spear",
+                "kind": "adjacent",
+                "note": "兽牙直接相邻长矛，武器出手才产怒。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Giant Sling",
+            "Wolf Mask",
+            "Eagle Sigil"
+          ],
+          "core_items": [
+            "Giant Sling",
+            "Wolf Mask",
+            "Eagle Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Flare",
+              "use": "充能启动",
+              "note": "两发群体充能帮助首轮；不能当持续装填来源。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Utility Belt",
+              "use": "装填投石索",
+              "note": "腰带装填随机弹药牌；只有投石索时不会分流，同时有信号弹时要核对目标。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "补暴击",
+              "note": "提高己方飞行物品暴击；主力已飞行时鹰不再选中它加速。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Anaconda",
+              "use": "主力替代",
+              "note": "巨蟒从金起步，按实际累计怒火成长并在暴怒时叠多重；不再是弹药武器。",
+              "replaces": [
+                "Giant Sling"
+              ],
+              "position_note": "巨蟒接替原主力位置，仍由左侧飞鼠、右侧狼面具支持。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "狼面具贴投石索，鹰符吃暴击产怒并在暴怒时加伤；投石索的暴怒五倍伤害需要真的进怒。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Giant Sling",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Wolf Mask",
+                "target": "Giant Sling",
+                "kind": "adjacent",
+                "note": "狼面具必须直接相邻主力，暴击加成和暴怒翻倍才生效。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Flying Squirrel",
+            "Giant Sling",
+            "Wolf Mask",
+            "Flare",
+            "Eagle Sigil"
+          ],
+          "core_items": [
+            "Giant Sling",
+            "Wolf Mask",
+            "Eagle Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Utility Belt",
+              "use": "持续装填",
+              "note": "用腰带换下信号弹后，投石索是这组唯一弹药牌；失去群体充能，换来实际装填。",
+              "replaces": [
+                "Flare"
+              ],
+              "position_note": "腰带可放右侧负责全局装填；要吃相邻缩冷却需重排飞鼠/面具，不能声称三者同时贴主力。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Messenger Sparrow",
+              "use": "飞行充能",
+              "note": "为其他飞行牌充能，需先由飞鼠使主力飞行；不能替代装填。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "补暴击",
+              "note": "用猎鹰替信号弹，补飞行暴击；少了群体充能，投石索弹药仍有限。",
+              "replaces": [
+                "Flare"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Anaconda",
+              "use": "转巨蟒",
+              "note": "同为三格终端，改用怒火累计与暴怒多重；转型前比较实际伤害和怒火启动。",
+              "replaces": [
+                "Giant Sling"
+              ],
+              "position_note": "放原投石索位置，保留飞鼠在左、狼面具在右。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "补控制",
+              "note": "按对手控制需求选取；它不提供投石索装填。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先补主力暴击、首轮进怒和实际发数；短战爆发与持续装填是不同配置，不承诺固定秒杀。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Giant Sling",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Wolf Mask",
+                "target": "Giant Sling",
+                "kind": "adjacent",
+                "note": "狼面具必须直接相邻主力，暴击加成和暴怒翻倍才生效。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        }
+      ],
+      "pivot": "投石索、狼面具、鹰符到手再转；大蛇是可选终端，不要求一起上。",
+      "caution": "投石索与信号弹都有弹药上限；水囊、飞鼠和信号弹的充能均不等于装填。",
+      "skills": "优先现成暴击和可靠启动；S19战斗开始怒火技能只算开局，不写成持续循环。",
+      "sources": [
+        "bili18_eagle",
+        "bili18_lines",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s18": "S18 · B站二中 09-03/09-05攻略；界面按本机当前占格适配，未复刻历史数值。",
+        "s19": "S19 · 九月B站思路按19.0模板适配；前中期为规划参考，未作当前强度排名。"
+      }
+    },
+    {
+      "id": "eagle_reaver",
+      "name": "鹰符 · 双头刀",
+      "anchors": [
+        "Dual Reaver"
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Dual Reaver"
+          ]
+        },
+        {
+          "name": "加速成长",
+          "items": [
+            "Flying Squirrel",
+            "Beast Call"
+          ]
+        },
+        {
+          "name": "暴击怒火",
+          "items": [
+            "Wolf Mask",
+            "Eagle Sigil"
+          ]
+        }
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Beast Tooth"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "过渡武器",
+              "note": "先保留能打的武器；长矛等共用过渡牌不锁定终局。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "伙伴过渡",
+              "note": "按当前战力补伙伴，拿到终局核心后再换。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击",
+              "note": "加速非飞行目标并使其飞行；已飞行的主力不再是其加速目标。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Flare",
+              "use": "群体充能",
+              "note": "信号弹从白银起步，只有两发弹药；它充能其他主动牌，本身不直接产怒。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先用长矛与兽牙过渡；金起步终端未到手时继续保留现有战力，不按天数强行转型。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Beast Tooth",
+                "target": "Spear",
+                "kind": "adjacent",
+                "note": "兽牙直接相邻长矛，武器出手才产怒。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Dual Reaver",
+            "Beast Call",
+            "Flare"
+          ],
+          "core_items": [
+            "Dual Reaver",
+            "Beast Call"
+          ],
+          "optional_items": [
+            {
+              "name": "Wolf Mask",
+              "use": "暴击与首怒",
+              "note": "直接贴双头刀再获得暴击加成；首次怒火每场只给一次。",
+              "replaces": [],
+              "position_note": "换入后放主力右邻，兽笛移到外侧；飞鼠保持主力左邻。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Eagle Sigil",
+              "use": "暴击产怒",
+              "note": "有实际暴击后才产怒和放大伤害，不把低暴击当满暴击。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Waterskin",
+              "use": "充能兽笛",
+              "note": "水囊给主动兽笛充能；不向被动面具/鹰符充能。",
+              "replaces": [],
+              "position_note": "紧贴兽笛右侧，信号弹移到外侧；水囊不会装填信号弹。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击",
+              "note": "改善飞行暴击；与兽笛同时上场时多一个伙伴，随机目标可能分流。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "双头刀按实际加速事件长暴击；九月攻略建议金品质后再独立承担输出，银刀先作过渡，不强行卖掉原主力。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Dual Reaver",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Flying Squirrel",
+            "Dual Reaver",
+            "Wolf Mask",
+            "Beast Call",
+            "Eagle Sigil"
+          ],
+          "core_items": [
+            "Dual Reaver",
+            "Eagle Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Messenger Sparrow",
+              "use": "补频率",
+              "note": "补加速和飞行充能；多一个伙伴后兽笛会分流，主力仍靠左侧飞鼠稳定启动。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "补飞行暴击",
+              "note": "替兽笛保留暴击支援；主力已飞行后鹰的加速会选其他非飞行牌。",
+              "replaces": [
+                "Beast Call"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Flare",
+              "use": "首轮充能",
+              "note": "两发群体充能，不能当作无限频率；不是信号枪。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Night Vision",
+              "use": "自缓加速变体",
+              "note": "只在真实减速相邻主动牌后才触发加速；辉耀免缓或贴被动牌会断链。",
+              "replaces": [
+                "Wolf Mask"
+              ],
+              "position_note": "夜视仪换狼面具放主力右邻；会减速主力并失去狼面暴击，需要重新比较输出。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "飞鼠左贴主力、狼面右贴主力；本基础中兽笛选到飞鼠时也会加速其右邻双头刀，额外伙伴会改变目标分布。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Dual Reaver",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Wolf Mask",
+                "target": "Dual Reaver",
+                "kind": "adjacent",
+                "note": "狼面具必须直接相邻主力，暴击加成和暴怒翻倍才生效。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        }
+      ],
+      "pivot": "双头刀与实际加速链到手才转；暴击与鹰符是后续放大。",
+      "caution": "减速本身不让双头刀成长，必须经夜视仪等转成真实加速事件；不要把无限暴击当初始状态。",
+      "skills": "优先可靠加速、暴击与抗控；武器羁绊只有实际获得时才使最左武器成为伙伴。",
+      "sources": [
+        "bili18_lines",
+        "bili18_eagle",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s18": "S18 · B站二中 09-03/09-05攻略；界面按本机当前占格适配，未复刻历史数值。",
+        "s19": "S19 · 九月B站思路按19.0模板适配；前中期为规划参考，未作当前强度排名。"
+      }
+    },
+    {
+      "id": "tree_club",
+      "name": "大树 · 暴怒充能",
+      "anchors": [
+        "Tree Club"
+      ],
+      "roles": [
+        {
+          "name": "主力",
+          "items": [
+            "Tree Club"
+          ]
+        },
+        {
+          "name": "启动",
+          "items": [
+            "Flying Squirrel",
+            "Wolf Mask",
+            "Flare"
+          ]
+        },
+        {
+          "name": "充能与成长",
+          "items": [
+            "Waterskin",
+            "Eagle Sigil",
+            "Utility Belt"
+          ]
+        }
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Beast Tooth"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "过渡武器",
+              "note": "先保留能打的武器；长矛等共用过渡牌不锁定终局。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "伙伴过渡",
+              "note": "按当前战力补伙伴，拿到终局核心后再换。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击",
+              "note": "加速非飞行目标并使其飞行；已飞行的主力不再是其加速目标。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Flare",
+              "use": "群体充能",
+              "note": "信号弹从白银起步，只有两发弹药；它充能其他主动牌，本身不直接产怒。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先用长矛与兽牙过渡；金起步终端未到手时继续保留现有战力，不按天数强行转型。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Beast Tooth",
+                "target": "Spear",
+                "kind": "adjacent",
+                "note": "兽牙直接相邻长矛，武器出手才产怒。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Tree Club",
+            "Wolf Mask",
+            "Flare",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Tree Club",
+            "Wolf Mask",
+            "Flare"
+          ],
+          "optional_items": [
+            {
+              "name": "Eagle Sigil",
+              "use": "暴击成长",
+              "note": "有实际暴击时补怒和加伤；按短板选取，不代替初始启动。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Utility Belt",
+              "use": "装填信号弹",
+              "note": "本基础只有信号弹消耗弹药，腰带可实际装填它；水囊只能充能。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "相邻武器产怒",
+              "note": "换狼面具后贴大树；须大树实际出手才产怒，不能单独解除暴怒前停转。",
+              "replaces": [
+                "Wolf Mask"
+              ],
+              "position_note": "兽牙放原面具位置直接相邻大树；失去面具首次怒火和暴击，先确认其他启动。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "补飞行暴击",
+              "note": "需主力实际飞行；占格不足时在已有支持中取舍。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "大树从金起步且暴怒外不自然读条；先有飞鼠邻接产怒、面具首怒和信号弹外充，再考虑换主力。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Tree Club",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Wolf Mask",
+                "target": "Tree Club",
+                "kind": "adjacent",
+                "note": "狼面具必须直接相邻主力，暴击加成和暴怒翻倍才生效。"
+              },
+              {
+                "source": "Flare",
+                "target": "Waterskin",
+                "kind": "immediate_left",
+                "note": "水囊紧贴信号弹右侧，只充能与治疗，不负责装填。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Flying Squirrel",
+            "Tree Club",
+            "Wolf Mask",
+            "Eagle Sigil",
+            "Flare",
+            "Waterskin"
+          ],
+          "core_items": [
+            "Tree Club",
+            "Wolf Mask",
+            "Eagle Sigil"
+          ],
+          "optional_items": [
+            {
+              "name": "Utility Belt",
+              "use": "装填换成长",
+              "note": "替鹰符后少一条暴击成长，换来信号弹装填；主力仍需要真实暴怒启动。",
+              "replaces": [
+                "Eagle Sigil"
+              ],
+              "position_note": "腰带放信号弹左邻、水囊放其右邻；只有信号弹需要装填时不会分流。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Beast Tooth",
+              "use": "邻接产怒",
+              "note": "贴主力实际出手才产怒；替面具会失去首次怒火与暴击，不是无条件升级。",
+              "replaces": [
+                "Wolf Mask"
+              ],
+              "position_note": "兽牙接替面具位置直接贴主力右侧，飞鼠仍在左侧。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击替代",
+              "note": "替鹰符补飞行暴击，失去鹰符的暴击产怒与暴怒加伤。",
+              "replaces": [
+                "Eagle Sigil"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Fogshroom",
+              "use": "控制替代",
+              "note": "换下水囊后少一条对信号弹的充能，按实际控制缺口选择。",
+              "replaces": [
+                "Waterskin"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "保留飞鼠与大树直接邻接；先确认首轮能进怒，再补暴击、外部充能和信号弹的装填。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Tree Club",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Wolf Mask",
+                "target": "Tree Club",
+                "kind": "adjacent",
+                "note": "狼面具必须直接相邻主力，暴击加成和暴怒翻倍才生效。"
+              },
+              {
+                "source": "Flare",
+                "target": "Waterskin",
+                "kind": "immediate_left",
+                "note": "水囊紧贴信号弹右侧，只充能与治疗，不负责装填。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        }
+      ],
+      "pivot": "能进怒且已有外部充能才接大树；零启动时继续保留长矛等过渡武器。",
+      "caution": "信号弹两发耗尽后会停，水囊不会装填；兽牙等大树出手后才触发，不能把两张停转牌写成启动闭环。",
+      "skills": "战斗开始怒火与暴怒初始充能按到手情况选择；缩怒会增加暴怒外停转风险。",
+      "sources": [
+        "bili18_lines",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s18",
+        "s19"
+      ],
+      "season_notes": {
+        "s18": "S18 · B站二中09-03大树思路；狼面具/鹰符是当前模板启动与暴击适配。",
+        "s19": "S19 · 九月B站思路按19.0模板适配；前中期为规划参考，未作当前强度排名。"
+      }
+    },
+    {
+      "id": "mask_bear",
+      "name": "面具 · 双兽成长",
+      "anchors": [
+        "Bear Mask",
+        "Boar Mask",
+        "Wild Bear"
+      ],
+      "roles": [
+        {
+          "name": "生命输出",
+          "items": [
+            "Wild Bear",
+            "Outlands Terror"
+          ]
+        },
+        {
+          "name": "面具启动",
+          "items": [
+            "Bear Mask",
+            "Boar Mask"
+          ]
+        },
+        {
+          "name": "后续怒火",
+          "items": [
+            "Assault Sigil"
+          ]
+        },
+        {
+          "name": "群体充能",
+          "items": [
+            "Flare",
+            "Utility Belt"
+          ]
+        }
+      ],
+      "stages": [
+        {
+          "key": "early",
+          "base_items": [
+            "Flying Squirrel",
+            "Spear",
+            "Beast Tooth"
+          ],
+          "core_items": [
+            "Spear"
+          ],
+          "optional_items": [
+            {
+              "name": "Hunting Knife",
+              "use": "过渡武器",
+              "note": "先保留能打的武器；长矛等共用过渡牌不锁定终局。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Honey Badger",
+              "use": "伙伴过渡",
+              "note": "按当前战力补伙伴，拿到终局核心后再换。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunting Hawk",
+              "use": "飞行暴击",
+              "note": "加速非飞行目标并使其飞行；已飞行的主力不再是其加速目标。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Flare",
+              "use": "群体充能",
+              "note": "信号弹从白银起步，只有两发弹药；它充能其他主动牌，本身不直接产怒。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "先用长矛与兽牙过渡；金起步终端未到手时继续保留现有战力，不按天数强行转型。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Spear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              },
+              {
+                "source": "Beast Tooth",
+                "target": "Spear",
+                "kind": "adjacent",
+                "note": "兽牙直接相邻长矛，武器出手才产怒。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "mid",
+          "base_items": [
+            "Flying Squirrel",
+            "Wild Bear",
+            "Bear Mask",
+            "Flare"
+          ],
+          "core_items": [
+            "Wild Bear",
+            "Bear Mask"
+          ],
+          "optional_items": [
+            {
+              "name": "Assault Sigil",
+              "use": "补持续怒火",
+              "note": "武器实际出手才给怒火；比只有一次的面具首怒更适合补后续启动。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Outlands Terror",
+              "use": "怒火翻倍",
+              "note": "荒原恐兽将实际获得的怒火翻倍；必须有来源才有收益。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Boar Mask",
+              "use": "面具爆发",
+              "note": "首次怒火每场一次，暴怒时按生命打伤害并给护盾。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Utility Belt",
+              "use": "装填信号弹",
+              "note": "按实际弹药缺口换入；同时存在其他弹药牌时随机目标会分流。",
+              "replaces": [],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "前中期是本机机制整理：先用野熊与熊面具建立生命输出，缺后续怒火时补突击符印；不声称视频展示了开局过程。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [
+              {
+                "source": "Flying Squirrel",
+                "target": "Wild Bear",
+                "kind": "immediate_left",
+                "note": "飞鼠紧贴主力左侧，加速并使其飞行。"
+              }
+            ],
+            "note": "按当前模板占格整理；基础顺序从左到右。"
+          }
+        },
+        {
+          "key": "late",
+          "base_items": [
+            "Bear Mask",
+            "Flare",
+            "Outlands Terror",
+            "Wild Bear",
+            "Boar Mask"
+          ],
+          "core_items": [
+            "Bear Mask",
+            "Outlands Terror",
+            "Wild Bear"
+          ],
+          "optional_items": [
+            {
+              "name": "Assault Sigil",
+              "use": "续怒替代",
+              "note": "用突击符印替野猪面具，由武器出手补后续怒火；失去面具首次怒火、生命伤害和护盾。",
+              "replaces": [
+                "Boar Mask"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Utility Belt",
+              "use": "装填替代",
+              "note": "用腰带替野猪面具装填信号弹；保留群体充能，少了面具伤害/护盾，仍需补后续怒火。",
+              "replaces": [
+                "Boar Mask"
+              ],
+              "position_note": "腰带可放最右负责全局装填；若要缩信号弹冷却，重排为腰带直接相邻信号弹。",
+              "fills_gap_after": []
+            },
+            {
+              "name": "Hunter's Pack",
+              "use": "生命暴击替代",
+              "note": "替野猪面具，收益取决于仓库实际类型；仓库类型支持不代表物品已在场生效。",
+              "replaces": [
+                "Boar Mask"
+              ],
+              "position_note": "全局效果，不要求固定相邻；换入后核对总占格。",
+              "fills_gap_after": []
+            }
+          ],
+          "plan": "10-11实战完整终盘样例：恐兽翻倍实际怒火，熊面具加生命，野熊承担生命伤害，野猪面具提供暴怒爆发。样例里的技能、品质和附魔不能省略为必胜公式。",
+          "positioning": {
+            "gaps_after": {},
+            "links": [],
+            "note": "五张基础共10格，均无特定邻接要求；顺序来自实战画面。替换时核对失去的面具收益。"
+          }
+        }
+      ],
+      "pivot": "野熊与面具到手后比较现有战力，再收恐兽；不为复刻终盘硬卖仍能赢的过渡牌。",
+      "caution": "两张面具的怒火都只在每场首次触发；信号弹只有两发。后续进怒需要实际技能、武器/加速怒火来源支持，不能保证无限变身。",
+      "skills": "开局怒火只算首轮；医者精准需要真实治疗/回复；按实际拥有的技能判断后续循环。",
+      "sources": [
+        "bili19_bear",
+        "patch19mirror"
+      ],
+      "seasons": [
+        "s19"
+      ],
+      "season_notes": {
+        "s19": "S19 · B站10-11实战终盘样例；前中期和可选替换为机制整理，未验证通用胜率。"
       }
     }
   ],

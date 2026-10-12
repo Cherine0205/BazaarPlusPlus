@@ -76,7 +76,7 @@ class ReferenceTests(unittest.TestCase):
 
     def test_all_routes_stages_and_images_resolve_without_scoring(self):
         reference = self.book.reference({})
-        self.assertEqual([r["id"] for r in reference["routes"]], ["friends", "boa", "ammo", "poison", "health", "aurora", "burn", "wild_bear", "karst", "anaconda", "hydra", "flamespitter"])
+        self.assertEqual([r["id"] for r in reference["routes"]], ["friends", "boa", "ammo", "poison", "health", "aurora", "burn", "wild_bear", "karst", "anaconda", "hydra", "flamespitter", "eagle_sling", "eagle_reaver", "tree_club", "mask_bear"])
         for result, definition in zip(reference["routes"], self.book.data["routes"]):
             self.assertNotIn("fit", result)
             self.assertEqual([s["key"] for s in result["stages"]], ["early", "mid", "late"])
@@ -103,8 +103,8 @@ class ReferenceTests(unittest.TestCase):
         reference = self.book.reference({})
         self.assertEqual(reference["default_season"], "s19")
         self.assertEqual({s["id"] for s in reference["seasons"]}, {"s18", "s19"})
-        self.assertEqual([r["id"] for r in reference["routes"] if "s18" in r["seasons"]], ["friends", "poison", "aurora"])
-        self.assertEqual(sum("s19" in r["seasons"] for r in reference["routes"]), 12)
+        self.assertEqual([r["id"] for r in reference["routes"] if "s18" in r["seasons"]], ["friends", "boa", "poison", "aurora", "wild_bear", "anaconda", "eagle_sling", "eagle_reaver", "tree_club"])
+        self.assertEqual(sum("s19" in r["seasons"] for r in reference["routes"]), 16)
         self.assertTrue(all(set(r["season_notes"]) == set(r["seasons"]) for r in reference["routes"]))
         for change in (lambda d: d.update(default_season="s99"),
                        lambda d: d["routes"][0].update(seasons=["s99"]),
@@ -129,7 +129,7 @@ class ReferenceTests(unittest.TestCase):
                 definition["roles"] = []
         reference = StrategyBook(self.book.catalog, data).reference(state([card("Shotgun")]))
         self.assertEqual(reference["matched_route_ids"]["s19"], ["boa", "ammo"])
-        self.assertEqual(reference["matched_route_ids"]["s18"], [])
+        self.assertEqual(reference["matched_route_ids"]["s18"], ["boa"])
 
     def test_all_positioning_blocks_preserve_sizes_order_and_ten_slot_geometry(self):
         for result in self.book.reference({})["routes"]:
@@ -208,7 +208,7 @@ class ReferenceTests(unittest.TestCase):
         self.assertFalse(reference["live"])
         self.assertIn("暂不可读", reference["version_note"])
         self.assertTrue(self.book.verified)
-        self.assertEqual(len(reference["routes"]), 12)
+        self.assertEqual(len(reference["routes"]), 16)
         for result in reference["routes"]:
             for stage in result["stages"]:
                 self.assertFalse(stage["positioning"]["available"])
@@ -369,7 +369,7 @@ class ReferenceTests(unittest.TestCase):
         self.book.catalog.cards["Tent"]["Size"] = "Large"
         updated = StrategyBook(self.book.catalog, self.book.data)
         self.assertFalse(updated.verified)
-        self.assertEqual(len(updated.reference({})["routes"]), 12)
+        self.assertEqual(len(updated.reference({})["routes"]), 16)
         self.assertIn("请核对", updated.reference({})["version_note"])
 
     def test_reference_is_pure_and_observation_identity_is_authoritative(self):
@@ -491,7 +491,7 @@ class WorkerTests(unittest.TestCase):
             self.assertFalse(thread.is_alive())
             document = read_json(runtime / "guide.json")
             self.assertEqual(document["status"], "catalog_error")
-            self.assertEqual(len(document["reference"]["routes"]), 12)
+            self.assertEqual(len(document["reference"]["routes"]), 16)
             self.assertFalse(document["reference"]["live"])
 
 
