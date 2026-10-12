@@ -127,6 +127,33 @@ seasonView.Synchronize(emptySeason, false);
 Check(seasonView.RouteId == "" && seasonView.Route(emptySeason) == null, "Empty season has no fabricated fallback route");
 seasonView.SelectSeason("unknown"); seasonView.Synchronize(seasonal, false);
 Check(seasonView.SeasonId == "s19", "Unknown season recovers to the declared default");
+var grouped = (JObject)Guide()["reference"]!;
+grouped["matched_route_ids"]!["s19"] = new JArray();
+grouped["routes"]![0]!["sources"] = new JArray(new JObject { ["url"] = "https://mobalytics.gg/the-bazaar/guides/meta-builds" });
+grouped["routes"]![1]!["sources"] = new JArray(new JObject { ["url"] = "https://www.bilibili.com/video/BV1aZty6JEcd/" });
+var groupedView = new ReferenceViewState();
+groupedView.Synchronize(grouped, false);
+Check(groupedView.RouteId == "ammo" && !groupedView.OtherRoutesExpanded, "Default browse selects a Bilibili route and folds other references");
+Check(groupedView.Routes(grouped).Select(route => (string?)route["id"]).SequenceEqual(new[] { "ammo", "friends" }), "Bilibili priority preserves every eligible route for matching");
+var misleadingSource = new JObject { ["sources"] = new JArray(new JObject { ["title"] = "B站攻略", ["url"] = "https://bilibili.com.example.net/video" }) };
+Check(!ReferenceViewState.IsBilibiliRoute(misleadingSource), "Group membership comes from the source host rather than its title");
+groupedView.ToggleOtherRoutes(); groupedView.SelectRoute("friends"); groupedView.SelectStage("early"); groupedView.SelectCard("spear");
+groupedView.Synchronize(grouped, false); groupedView.ToggleOtherRoutes(); groupedView.Synchronize(grouped, false);
+Check(!groupedView.OtherRoutesExpanded && groupedView.RouteId == "friends" && groupedView.StageKey == "early" && groupedView.CardId == "spear",
+    "Folding the selected group preserves route, phase and card detail");
+Check(!groupedView.FollowOwned && !groupedView.FollowDay, "Folding a group does not re-enable automatic selection");
+groupedView.SelectRoute("ammo"); groupedView.MatchOwned();
+grouped["matched_route_ids"]!["s19"] = new JArray("friends"); groupedView.Synchronize(grouped, true);
+Check(groupedView.RouteId == "friends" && groupedView.OtherRoutesExpanded, "A newly matched secondary route is revealed automatically");
+groupedView.ToggleOtherRoutes(); groupedView.Synchronize(grouped, true);
+Check(!groupedView.OtherRoutesExpanded && groupedView.RouteId == "friends", "Repeated ownership updates respect a user-collapsed group");
+grouped["matched_route_ids"]!["s19"] = new JArray("ammo", "friends"); groupedView.Synchronize(grouped, true);
+Check(groupedView.RouteId == "friends" && !groupedView.OtherRoutesExpanded, "Bilibili priority does not reset an existing tied selection");
+var groupedSeason = (JObject)grouped.DeepClone(); groupedSeason["routes"]![1]!["seasons"] = new JArray("s18");
+Check(groupedView.Routes(groupedSeason).Select(route => (string?)route["id"]).SequenceEqual(new[] { "friends" }), "Season filtering precedes source grouping");
+var noPrimary = (JObject)Guide()["reference"]!;
+var noPrimaryView = new ReferenceViewState(); noPrimaryView.Synchronize(noPrimary, false);
+Check(noPrimaryView.RouteId == "friends" && noPrimaryView.OtherRoutesExpanded, "A catalog without Bilibili routes still exposes its fallback selection");
 foreach (var countCase in new[] { 0, 1, 4, 5, 8, 9, 12, 13, 16 })
 {
     Check(ReferenceViewState.RouteRows(countCase) == (countCase + 3) / 4, "Wide route grid height for " + countCase);

@@ -188,8 +188,7 @@ internal sealed class AdvisorPanel : IDisposable
             return;
         }
         var routesTop = ReferenceViewState.RoutesTop(Width);
-        DrawRoutes(routes, routesTop);
-        var stagesTop = routesTop + ReferenceViewState.RouteRows(routes.Count, Width) * 38 + 4;
+        var stagesTop = DrawRouteGroups(routes, routesTop);
         DrawStages(stagesTop);
         _selection.Synchronize(_reference, _live);
         var route = _selection.Route(_reference);
@@ -231,6 +230,33 @@ internal sealed class AdvisorPanel : IDisposable
         if (GUI.Button(new Rect(Width - 101, 17, 61, 27), "展开", _smallButton)) _compact = false;
         if (GUI.Button(new Rect(Width - 32, 17, 20, 27), "×", _smallButton)) _visible = false;
         GUI.DragWindow(new Rect(0, 0, Width - 108, 60));
+    }
+
+    private float DrawRouteGroups(IReadOnlyList<JObject> routes, float top)
+    {
+        var primary = routes.Where(ReferenceViewState.IsBilibiliRoute).ToArray();
+        var other = routes.Where(route => !ReferenceViewState.IsBilibiliRoute(route)).ToArray();
+        if (primary.Length > 0)
+        {
+            Label(new Rect(Padding, top, Width - Padding * 2, 21), "B站攻略 · " + primary.Length, _small, Gold);
+            top += 25;
+            DrawRoutes(primary, top);
+            top += ReferenceViewState.RouteRows(primary.Length, Width) * 38 + 4;
+        }
+        if (other.Length > 0)
+        {
+            var selectedOther = other.Any(route => (string?)route["id"] == _selection.RouteId);
+            var label = (_selection.OtherRoutesExpanded ? "▼ " : "▶ ") + "其他参考 · " + other.Length;
+            if (selectedOther) label += "  ◆";
+            if (GUI.Button(new Rect(Padding, top, Width - Padding * 2, 26), label, _smallButton)) _selection.ToggleOtherRoutes();
+            top += 32;
+            if (_selection.OtherRoutesExpanded)
+            {
+                DrawRoutes(other, top);
+                top += ReferenceViewState.RouteRows(other.Length, Width) * 38 + 4;
+            }
+        }
+        return top + 4;
     }
 
     private void DrawRoutes(IReadOnlyList<JObject> routes, float top)

@@ -15,6 +15,7 @@ internal sealed class ReferenceViewState
     internal string CardId { get; private set; } = "";
     internal bool FollowOwned { get; private set; } = true;
     internal bool FollowDay { get; private set; } = true;
+    internal bool OtherRoutesExpanded { get; private set; }
 
     internal void Synchronize(JObject reference, bool live)
     {
@@ -26,6 +27,11 @@ internal sealed class ReferenceViewState
         if (FollowOwned && live && match != null) routeId = (string)match["id"]!;
         if (!routes.Any(r => (string?)r["id"] == routeId)) routeId = (string?)routes.FirstOrDefault()?["id"] ?? "";
         var stage = FollowDay && live ? (string?)reference["stage"] ?? StageKey : StageKey;
+        if (routeId != RouteId)
+        {
+            var selected = routes.FirstOrDefault(route => (string?)route["id"] == routeId);
+            if (selected != null && !IsBilibiliRoute(selected)) OtherRoutesExpanded = true;
+        }
         if (routeId != RouteId || stage != StageKey) CardId = "";
         RouteId = routeId;
         StageKey = stage;
@@ -41,7 +47,13 @@ internal sealed class ReferenceViewState
     internal void SelectStage(string key) { if (key != StageKey) CardId = ""; StageKey = key; FollowDay = false; }
     internal void SelectSeason(string id) { if (id != SeasonId) CardId = ""; SeasonId = id; }
     internal IReadOnlyList<JObject> Routes(JObject? reference) => (reference?["routes"] as JArray ?? new JArray()).OfType<JObject>()
-        .Where(route => (route["seasons"] as JArray)?.Values<string>().Contains(SeasonId) == true).ToArray();
+        .Where(route => (route["seasons"] as JArray)?.Values<string>().Contains(SeasonId) == true)
+        .OrderByDescending(IsBilibiliRoute).ToArray();
+    internal static bool IsBilibiliRoute(JObject route) => (route["sources"] as JArray ?? new JArray()).OfType<JObject>()
+        .Any(source => Uri.TryCreate((string?)source["url"], UriKind.Absolute, out var uri)
+            && (uri.Host.Equals("bilibili.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".bilibili.com", StringComparison.OrdinalIgnoreCase)));
+    internal void ToggleOtherRoutes() => OtherRoutesExpanded = !OtherRoutesExpanded;
     internal static int RouteColumns(float width) => width >= 480 ? 4 : 3;
     internal static int RouteRows(int count, float width = 504) => (Math.Max(0, count) + RouteColumns(width) - 1) / RouteColumns(width);
     internal static float RoutesTop(float width) => width >= 480 ? 90 : 119;

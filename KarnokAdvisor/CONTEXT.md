@@ -13,4 +13,4 @@
 
 `strategies.json` 拥有流派、阶段、组件、条件和来源。`strategy.py` 的 `StrategyBook.stage` 将它们映射到本机唯一卡牌模板，并计算基础占格和单项替换后的占格；站位总占格另外包含保留的隔离位。可选牌只有显式声明 `fills_gap_after` 才能填该隔离位；替换掉隔离位锚点时不再保留其空位。这些计算不代表当前场上一定能直接摆入或所有联动条件已经成立。游戏模板变化时保留静态资料并提示核对卡面。
 
-`StrategyBook.reference` 在每个赛季内计算场上辨识牌与角色覆盖，`matched_route_ids` 列出所有同分最佳路线。`ReferenceViewState` 只在当前赛季可见路线内选择，优先保留当前同分路线；没有辨识核心时保留有效浏览位置。`advisor.DOCUMENT_KIND` 与 `ReferenceViewState.DocumentKind` 定义本地响应协议版本，旧协议不能供应实时持有。
+`StrategyBook.reference` 在每个赛季内计算场上辨识牌与角色覆盖，`matched_route_ids` 列出所有同分最佳路线。`ReferenceViewState` 只在当前赛季收录的路线内选择，优先保留当前同分路线；没有辨识核心时保留有效浏览位置。列表分组的折叠不改变匹配范围。`advisor.DOCUMENT_KIND` 与 `ReferenceViewState.DocumentKind` 定义本地响应协议版本，旧协议不能供应实时持有。
